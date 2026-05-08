@@ -75,10 +75,10 @@ const AppRouter = () => (
           <ProtectedRoute allowedRoles={MANAGEMENT_PLUS}><DailyReports /></ProtectedRoute>
         } />
 
-                <Route path="/attendance/correction-history" element={
+        <Route path="/attendance/correction-history" element={
           <ProtectedRoute allowedRoles={MANAGEMENT_PLUS}><AttendanceHistory /></ProtectedRoute>
         } />
-                <Route path="/attendance/employee/attendance" element={
+        <Route path="/attendance/employee/attendance" element={
           <ProtectedRoute allowedRoles={MANAGEMENT_PLUS}><EmployeeAttendance /></ProtectedRoute>
         } />
         <Route path="/attendance/corrections" element={
@@ -129,7 +129,7 @@ const AppRouter = () => (
           <ProtectedRoute allowedRoles={ALL_ROLES}><VideoList /></ProtectedRoute>
         } />
 
-                <Route path="/gurukul/:id" element={
+        <Route path="/gurukul/:id" element={
           <ProtectedRoute allowedRoles={ALL_ROLES}><VideoDetail /></ProtectedRoute>
         } />
 
