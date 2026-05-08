@@ -175,7 +175,8 @@ const ProfilePage = () => {
     setRegisteringFace(true);
 
     try {
-      const detection = await faceapi.detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions())
+      // Use optimized settings for web to match mobile precision
+      const detection = await faceapi.detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.4 }))
         .withFaceLandmarks()
         .withFaceDescriptor();
 
