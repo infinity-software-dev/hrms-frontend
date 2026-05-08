@@ -8,7 +8,7 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
-    allowedHosts: ['hrms-v-2-5-frontend.onrender.com'],
+    allowedHosts: ['https://hrms-frontend-smoky-ten.vercel.app/'],
     proxy: {
       '/api': {
         target: 'https://hrms-v-2-5-backend.vercel.app/',
@@ -19,6 +19,6 @@ export default defineConfig({
 
   preview: {
     host: true,
-    allowedHosts: ['hrms-v-2-5-frontend.onrender.com'],
+    allowedHosts: ['https://hrms-frontend-smoky-ten.vercel.app/'],
   }
 })
