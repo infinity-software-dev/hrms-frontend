@@ -36,7 +36,7 @@ const navGroups = [
         children: [
           { label: 'Leave Approvals', path: '/leave-approvals', roles: ['SuperUser', 'HR', 'Director', 'VP', 'GM', 'Manager'] },
           { label: 'Reports', path: '/attendance/reports', roles: ['SuperUser', 'HR', 'Director', 'VP', 'GM', 'Manager'] },
-          { label: 'Team Attendance', path: '/attendance/admin', roles: ['SuperUser', 'HR', 'Director', 'VP', 'GM', 'Manager'] },
+          { label: 'Team Attendance', path: '/attendance/admin', roles: ['SuperUser', 'HR', 'Director', 'VP', 'GM'] },
           { label: 'Corrections Requests', path: '/attendance/corrections', roles: ['SuperUser', 'HR', 'Director', 'VP', 'GM'] },
         ]
       },
@@ -56,11 +56,16 @@ const navGroups = [
       { icon: Calendar, label: 'Leave Dashboard', path: '/leave-dashboard', roles: ['SuperUser', 'HR', 'Director', 'VP', 'GM'] },
       { icon: Calendar, label: 'My Pay Slips', path: '/payroll/my', roles: ['SuperUser', 'HR', 'Manager', 'Director', 'VP', 'GM', 'Employee', 'Intern'] },
       { icon: Calendar, label: 'Gurukul', path: '/gurukul', roles: ['SuperUser', 'HR', 'Manager', 'Director', 'VP', 'GM', 'Employee', 'Intern'] },
+
+        { icon: Calendar, label: 'Special Login', path: '/special-logins', roles: ['SuperUser' ] },
+
+
+
     ]
   },
 ];
 
-// ==================== Styles ====================
+// ==================== Styles ============================
 const styles = {
   // Layout
   appContainer: {

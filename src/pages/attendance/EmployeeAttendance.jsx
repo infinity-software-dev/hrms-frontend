@@ -34,84 +34,131 @@ const StatusBadge = ({ status }) => {
   ) : null;
 };
 
-// Leaflet map modal component (improved)
-const MapModal = ({ isOpen, onClose, latitude, longitude, locationHistory = [], workMode, employeeName }) => {
+// Leaflet map modal component (highly robust version)
+const MapModal = ({ isOpen, onClose, latitude, longitude, checkOutLatitude, checkOutLongitude, locationHistory = [], workMode, employeeName }) => {
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
+  const [libReady, setLibReady] = useState(false);
+  const [mapError, setMapError] = useState(false);
 
+  // Phase 1: Load Leaflet Assets
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      setLibReady(false);
+      setMapError(false);
+      return;
+    }
 
-    const loadLeaflet = async () => {
-      if (!document.querySelector('link[href*="leaflet.css"]')) {
-        const link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-        link.integrity = 'sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=';
-        link.crossOrigin = '';
-        document.head.appendChild(link);
-      }
+    const loadAssets = async () => {
+      try {
+        // Load CSS
+        if (!document.querySelector('link[href*="leaflet.css"]')) {
+          const link = document.createElement('link');
+          link.rel = 'stylesheet';
+          link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+          document.head.appendChild(link);
+        }
 
-      if (!window.L) {
-        await new Promise((resolve, reject) => {
-          const script = document.createElement('script');
-          script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-          script.integrity = 'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=';
-          script.crossOrigin = '';
-          script.onload = resolve;
-          script.onerror = reject;
-          document.head.appendChild(script);
-        });
+        // Load JS
+        if (!window.L) {
+          await new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+          });
+        }
+        setLibReady(true);
+      } catch (err) {
+        console.error('Leaflet load error:', err);
+        setMapError(true);
+        toast.error('Failed to load map library');
       }
     };
 
-    loadLeaflet().then(() => {
-      if (mapContainerRef.current && !mapInstanceRef.current && window.L) {
+    loadAssets();
+  }, [isOpen]);
+
+  // Phase 2: Initialize Map
+  useEffect(() => {
+    if (!isOpen || !libReady || !mapContainerRef.current || mapInstanceRef.current) return;
+
+    const initMap = () => {
+      try {
         const L = window.L;
-        const map = L.map(mapContainerRef.current).setView([latitude, longitude], 15);
+        if (!L || latitude == null || longitude == null) return;
+
+        // Create map instance
+        const map = L.map(mapContainerRef.current, {
+          zoomControl: true,
+          scrollWheelZoom: true
+        }).setView([latitude, longitude], 15);
+
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          maxZoom: 19,
+          attribution: '© OpenStreetMap'
         }).addTo(map);
 
-        // Start marker
-        L.marker([latitude, longitude]).addTo(map)
-          .bindPopup(`<strong>Start (Check-in)</strong><br>${employeeName || 'Employee'}<br>${latitude}, ${longitude}`)
-          .openPopup();
+        // Custom Icon Generator
+        const createDivIcon = (color) => L.divIcon({
+          className: 'custom-div-icon',
+          html: `<div style="background-color: ${color}; width: 14px; height: 14px; border: 2.5px solid white; border-radius: 50%; box-shadow: 0 0 10px rgba(0,0,0,0.3);"></div>`,
+          iconSize: [14, 14],
+          iconAnchor: [7, 7]
+        });
 
-        // Draw path if there is location history
-        if (locationHistory && locationHistory.length > 1) {
-          const pathPoints = locationHistory.map(loc => [loc.latitude, loc.longitude]);
-          
-          // Polyline for the trail
-          const polyline = L.polyline(pathPoints, {
-            color: 'var(--color-primary)',
-            weight: 4,
-            opacity: 0.7,
-            dashArray: '10, 10',
-            lineJoin: 'round'
-          }).addTo(map);
+        // Add Markers
+        const startMarker = L.marker([latitude, longitude], { icon: createDivIcon('#059669') }).addTo(map)
+          .bindPopup(`<strong>Check-in</strong><br>${employeeName}<br>${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
 
-          // End marker (latest point)
-          const lastPoint = pathPoints[pathPoints.length - 1];
-          L.marker(lastPoint, {
-            icon: L.divIcon({
-              className: 'custom-div-icon',
-              html: `<div style="background-color: var(--color-primary); width: 12px; height: 12px; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 10px rgba(0,0,0,0.3);"></div>`,
-              iconSize: [12, 12],
-              iconAnchor: [6, 6]
-            })
-          }).addTo(map).bindPopup('<strong>Latest Location</strong>');
-
-          // Fit bounds to show the whole path
-          map.fitBounds(polyline.getBounds(), { padding: [30, 30] });
+        if (checkOutLatitude && checkOutLongitude) {
+          L.marker([checkOutLatitude, checkOutLongitude], { icon: createDivIcon('#DC2626') }).addTo(map)
+            .bindPopup(`<strong>Check-out</strong><br>${checkOutLatitude.toFixed(5)}, ${checkOutLongitude.toFixed(5)}`);
         }
 
+        // Bounds and Trail
+        const bounds = L.latLngBounds([[latitude, longitude]]);
+        if (checkOutLatitude) bounds.extend([checkOutLatitude, checkOutLongitude]);
+
+        const trailPoints = [[latitude, longitude]];
+        if (Array.isArray(locationHistory)) {
+          locationHistory.forEach(loc => {
+            if (loc.latitude && loc.longitude) {
+              trailPoints.push([loc.latitude, loc.longitude]);
+              bounds.extend([loc.latitude, loc.longitude]);
+            }
+          });
+        }
+        if (checkOutLatitude) trailPoints.push([checkOutLatitude, checkOutLongitude]);
+
+        if (trailPoints.length > 1) {
+          L.polyline(trailPoints, {
+            color: '#2076C7',
+            weight: 3,
+            opacity: 0.6,
+            dashArray: '5, 10'
+          }).addTo(map);
+          map.fitBounds(bounds, { padding: [50, 50] });
+        } else {
+          map.fitBounds(bounds, { padding: [100, 100], maxZoom: 16 });
+        }
+
+        startMarker.openPopup();
+        
+        // IMPORTANT: Invalidate size after modal animation
+        setTimeout(() => {
+          if (map) map.invalidateSize();
+        }, 500);
+
         mapInstanceRef.current = map;
+      } catch (err) {
+        console.error('Map init error:', err);
+        setMapError(true);
       }
-    }).catch(err => {
-      console.error('Failed to load Leaflet:', err);
-      toast.error('Map could not be loaded');
-    });
+    };
+
+    initMap();
 
     return () => {
       if (mapInstanceRef.current) {
@@ -119,7 +166,7 @@ const MapModal = ({ isOpen, onClose, latitude, longitude, locationHistory = [], 
         mapInstanceRef.current = null;
       }
     };
-  }, [isOpen, latitude, longitude, employeeName]);
+  }, [isOpen, libReady, latitude, longitude, checkOutLatitude, checkOutLongitude, locationHistory, employeeName]);
 
   if (!isOpen) return null;
 
@@ -130,48 +177,91 @@ const MapModal = ({ isOpen, onClose, latitude, longitude, locationHistory = [], 
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
-        style={{ position: 'absolute', inset: 0 }}
+        style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)' }}
       />
       <motion.div
         initial={{ scale: 0.95, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.95, opacity: 0, y: 20 }}
-        transition={{ type: 'spring', damping: 30, stiffness: 400 }}
+        transition={{ type: 'spring', damping: 25, stiffness: 350 }}
         style={{
           position: 'relative',
           background: 'var(--color-surface)',
           borderRadius: 'var(--radius-2xl)',
           width: 'calc(100% - 32px)',
-          maxWidth: '700px',
-          maxHeight: '92dvh',
+          maxWidth: '800px',
+          maxHeight: '95dvh',
           display: 'flex',
           flexDirection: 'column',
           boxShadow: 'var(--shadow-2xl)',
-          overflow: 'hidden'
+          overflow: 'hidden',
+          zIndex: 100
         }}
       >
         <div style={{ height: '4px', background: 'var(--gradient-primary)', flexShrink: 0 }} />
         <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ width: '38px', height: '38px', borderRadius: 'var(--radius-md)', background: 'var(--gradient-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <MapPin size={18} color="#fff" />
+            <div style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-lg)', background: 'var(--gradient-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <MapPin size={20} color="#fff" />
             </div>
             <div>
-              <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-text)' }}>
-                {employeeName || 'Employee'} Location
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-text)' }}>
+                {employeeName} &middot; Movement
               </h2>
-              <p style={{ fontSize: '0.8rem', color: 'var(--color-text-tertiary)' }}>
-                {latitude?.toFixed(5)}, {longitude?.toFixed(5)}
+              <p style={{ fontSize: '0.85rem', color: 'var(--color-text-tertiary)' }}>
+                Mode: <span style={{ color: 'var(--color-primary)', fontWeight: 700 }}>{workMode || 'Office'}</span>
               </p>
             </div>
           </div>
-          <button className="btn-icon" onClick={onClose}><X size={18} /></button>
+          <button className="btn-icon" onClick={onClose} style={{ background: 'var(--color-surface-hover)' }}><X size={20} /></button>
         </div>
-        <div style={{ padding: '16px', height: '400px', width: '100%' }}>
-          <div ref={mapContainerRef} style={{ height: '100%', width: '100%', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }} />
+
+        <div style={{ padding: '16px', flex: 1, background: '#f8fafc', position: 'relative', minHeight: '450px' }}>
+          {!libReady && !mapError && (
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+              <Loader2 className="animate-spin" size={32} color="var(--color-primary)" />
+              <p style={{ color: 'var(--color-text-tertiary)', fontSize: '0.9rem' }}>Loading map assets...</p>
+            </div>
+          )}
+          {mapError && (
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', background: '#FEF2F2' }}>
+              <AlertCircle size={32} color="#DC2626" />
+              <p style={{ color: '#DC2626', fontWeight: 600 }}>Failed to load map</p>
+              <button className="btn-secondary" onClick={() => window.location.reload()}>Retry</button>
+            </div>
+          )}
+          <div 
+            ref={mapContainerRef} 
+            style={{ 
+              height: '450px', 
+              width: '100%', 
+              borderRadius: 'var(--radius-xl)', 
+              overflow: 'hidden', 
+              border: '1px solid var(--color-border)',
+              background: '#e5e7eb',
+              opacity: libReady && !mapError ? 1 : 0,
+              transition: 'opacity 0.3s ease',
+              zIndex: 1
+            }} 
+          />
         </div>
-        <div style={{ padding: '16px 24px', borderTop: '1px solid var(--color-border)', display: 'flex', justifyContent: 'flex-end' }}>
-          <button className="btn-secondary" onClick={onClose}>Close</button>
+
+        <div style={{ padding: '16px 24px', background: 'var(--color-surface)', borderTop: '1px solid var(--color-border)', display: 'flex', flexWrap: 'wrap', gap: '24px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem' }}>
+            <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#059669', border: '2px solid #fff', boxShadow: '0 0 4px rgba(0,0,0,0.2)' }} />
+            <span style={{ fontWeight: 600 }}>Check-in</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem' }}>
+            <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#DC2626', border: '2px solid #fff', boxShadow: '0 0 4px rgba(0,0,0,0.2)' }} />
+            <span style={{ fontWeight: 600 }}>Check-out</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem' }}>
+            <div style={{ width: '20px', height: '3px', background: '#2076C7', opacity: 0.6, borderBottom: '1.5px dashed #fff' }} />
+            <span style={{ fontWeight: 600 }}>Path Trail</span>
+          </div>
+          <div style={{ marginLeft: 'auto' }}>
+            <button className="btn-secondary" onClick={onClose} style={{ padding: '8px 24px' }}>Close</button>
+          </div>
         </div>
       </motion.div>
     </div>
@@ -302,12 +392,14 @@ const fetchAttendance = useCallback(async () => {
       setSelectedLocation({
         lat: record.location.latitude,
         lng: record.location.longitude,
+        outLat: record.location.checkOutLatitude,
+        outLng: record.location.checkOutLongitude,
         name: record.employeeName,
         workMode: record.workMode,
         locationHistory: record.locationHistory || []
       });
     } else {
-      toast.error('Location not available for this record');
+      toast.error('Location data not available');
     }
   };
 
@@ -623,6 +715,8 @@ const fetchAttendance = useCallback(async () => {
               onClose={() => setSelectedLocation(null)}
               latitude={selectedLocation.lat}
               longitude={selectedLocation.lng}
+              checkOutLatitude={selectedLocation.outLat}
+              checkOutLongitude={selectedLocation.outLng}
               locationHistory={selectedLocation.locationHistory}
               workMode={selectedLocation.workMode}
               employeeName={selectedLocation.name}

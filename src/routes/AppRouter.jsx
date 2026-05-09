@@ -28,6 +28,7 @@ import VideoList from '../pages/gurukul/VideoList';
 import VideoDetail from '../pages/gurukul/VideoDetail';
 import EmployeeAttendance from '../pages/attendance/EmployeeAttendance';
 import AttendanceHistory from '../pages/attendance/AttendanceHistory';
+import SpecialLogins from '../pages/specialLogins/SpecialLogins';
 
 const CAN_CREATE = ['SuperUser', 'HR', 'Director', 'VP', 'GM'];
 const ALL_ROLES = ['SuperUser', 'HR', 'Manager', 'Director', 'VP', 'GM', 'Employee', 'Intern'];
@@ -60,6 +61,11 @@ const AppRouter = () => (
 
         <Route path="/profile" element={
           <ProtectedRoute allowedRoles={ALL_ROLES}><ProfilePage /></ProtectedRoute>
+        } />
+
+
+        <Route path="/special-logins" element={
+          <ProtectedRoute allowedRoles={['SuperUser']}><SpecialLogins /></ProtectedRoute>
         } />
 
         <Route path="/attendance" element={
@@ -99,7 +105,7 @@ const AppRouter = () => (
           <ProtectedRoute allowedRoles={MANAGEMENT_PLUS}><LeaveApproval /></ProtectedRoute>
         } />
         <Route path="/leave-dashboard" element={
-          <ProtectedRoute allowedRoles={['SuperUser', 'HR', 'Director']}><LeaveDashboard /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['SuperUser', 'HR', 'Director', 'VP', 'GM']}><LeaveDashboard /></ProtectedRoute>
         } />
 
         {/* Holidays */}
@@ -109,7 +115,7 @@ const AppRouter = () => (
 
         {/* Payroll */}
         <Route path="/payroll" element={
-          <ProtectedRoute allowedRoles={['SuperUser', 'HR', 'Director']}><PayrollDashboard /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['SuperUser', 'HR', 'Director', 'VP', 'GM']}><PayrollDashboard /></ProtectedRoute>
         } />
         <Route path="/payroll/my" element={
           <ProtectedRoute allowedRoles={ALL_ROLES}><EmployeePayroll /></ProtectedRoute>

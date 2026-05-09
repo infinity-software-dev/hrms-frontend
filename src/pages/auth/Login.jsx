@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import api from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
@@ -10,6 +11,8 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
 
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -39,6 +42,34 @@ const Login = () => {
     }
   };
 
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    if (!employeeCode.trim() || !newPassword) {
+      toast.error('Please enter employee code and new password');
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast.error('New password must be at least 6 characters');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await api.post('/auth/forgot-password', {
+        employeeCode: employeeCode.trim().toUpperCase(),
+        newPassword
+      });
+      toast.success('Password reset successfully! You can now login.');
+      setIsForgotPassword(false);
+      setPassword('');
+      setNewPassword('');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to reset password');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="login-container">
       {/* Soft Gradient Background */}
@@ -53,12 +84,12 @@ const Login = () => {
             <img src={logo} alt="Logo" />
           </div>
           <h1>Infinity Arthvishva</h1>
-          <p>Welcome back! Please login</p>
+          <p>{isForgotPassword ? 'Reset Your Password' : 'Welcome back! Please login'}</p>
         </div>
 
         {/* Card */}
         <div className="card">
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={isForgotPassword ? handleForgotPassword : handleSubmit}>
             {/* Employee Code */}
             <div className="input-group">
               <label>Employee Code</label>
@@ -74,13 +105,13 @@ const Login = () => {
 
             {/* Password */}
             <div className="input-group">
-              <label>Password</label>
+              <label>{isForgotPassword ? 'New Password' : 'Password'}</label>
               <div className="password-wrapper">
                 <input
                   type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter password"
+                  value={isForgotPassword ? newPassword : password}
+                  onChange={(e) => isForgotPassword ? setNewPassword(e.target.value) : setPassword(e.target.value)}
+                  placeholder={isForgotPassword ? "Enter new password" : "Enter password"}
                 />
                 <button
                   type="button"
@@ -93,6 +124,18 @@ const Login = () => {
               </div>
             </div>
 
+            {!isForgotPassword && (
+              <div style={{ textAlign: 'right', marginBottom: '15px' }}>
+                <button 
+                  type="button" 
+                  onClick={() => setIsForgotPassword(true)}
+                  style={{ background: 'none', border: 'none', color: '#2076C7', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Forgot Password?
+                </button>
+              </div>
+            )}
+
             {/* Button */}
             <button
               type="submit"
@@ -100,8 +143,20 @@ const Login = () => {
               className="login-btn"
             >
               {loading && <Loader2 className="spin" size={18} />}
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading ? 'Processing...' : (isForgotPassword ? 'Reset Password' : 'Sign In')}
             </button>
+            
+            {isForgotPassword && (
+              <div style={{ textAlign: 'center', marginTop: '15px' }}>
+                <button 
+                  type="button" 
+                  onClick={() => setIsForgotPassword(false)}
+                  style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '0.85rem', fontWeight: 500, cursor: 'pointer' }}
+                >
+                  Back to Login
+                </button>
+              </div>
+            )}
           </form>
 
           <p className="footer-text">

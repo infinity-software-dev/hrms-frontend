@@ -16,6 +16,7 @@ const DailyReports = () => {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [selectedReport, setSelectedReport] = useState(null);
   const [filterStatus, setFilterStatus] = useState('All');
   const [acknowledging, setAcknowledging] = useState(false);
@@ -29,18 +30,24 @@ const DailyReports = () => {
   const fetchReports = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await api.get('/attendance/admin', { params: { limit: 200 } });
+      const { data } = await api.get('/attendance/admin', { 
+        params: { 
+          from: selectedDate, 
+          to: selectedDate,
+          limit: 300 
+        } 
+      });
       // Ensure records array exists
       const records = data?.data?.records || [];
       const reportRecords = records.filter(r => r.todayWork).map(normalizeReport);
       setReports(reportRecords);
     } catch (err) {
-      toast.error('Failed to fetch reports. Please try again.');
+      toast.error('Failed to fetch reports for this date.');
       console.error('Fetch reports error:', err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedDate]);
 
   useEffect(() => {
     fetchReports();
@@ -92,10 +99,20 @@ const DailyReports = () => {
         <header className="dr-header">
           <div className="dr-header-text">
             <h1>Daily Reports</h1>
-            <p>Monitor team productivity and project updates</p>
+            <p>Monitor team productivity for {new Date(selectedDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long' })}</p>
           </div>
           
           <div className="dr-header-actions">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--color-surface-alt)', padding: '6px 12px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)' }}>
+               <Calendar size={18} color="var(--color-primary)" />
+               <input 
+                 type="date" 
+                 value={selectedDate} 
+                 onChange={(e) => setSelectedDate(e.target.value)}
+                 style={{ background: 'transparent', border: 'none', fontWeight: 700, fontSize: '0.9rem', color: 'var(--color-text)', outline: 'none' }}
+               />
+            </div>
+
             <div className="dr-filter-toggle">
               {['All', 'Unread', 'Read'].map((opt) => (
                 <button

@@ -108,26 +108,36 @@ const MobileRecordCard = ({ r, fmtT, canCorrect, onCorrect }) => {
         </div>
       </div>
 
-      {/* Bottom row: times + action */}
-      <div className="asum-mc-bottom">
-        <div className="asum-mc-times">
-          {[
-            { l: 'In',    v: r.isWeekOff || r.isAbsent ? '—' : fmtT(r.inTime),  c: 'var(--color-success)' },
-            { l: 'Out',   v: r.isWeekOff || r.isAbsent ? '—' : fmtT(r.outTime), c: 'var(--color-primary)' },
-            ...(r.totalHours ? [{ l: 'Hrs', v: `${r.totalHours.toFixed(1)}h`, c: '#8B5CF6' }] : []),
-          ].map(m => (
-            <div key={m.l} className="asum-mc-time-item">
-              <span className="asum-mc-tlabel">{m.l}</span>
-              <span className="asum-mc-tval" style={{ color: m.c }}>{m.v}</span>
-            </div>
-          ))}
+        <div className="asum-mc-bottom">
+          <div className="asum-mc-times">
+            {[
+              { l: 'In',    v: r.isWeekOff || r.isAbsent ? '—' : fmtT(r.inTime),  c: 'var(--color-success)' },
+              { l: 'Out',   v: r.isWeekOff || r.isAbsent ? '—' : fmtT(r.outTime), c: 'var(--color-primary)' },
+              ...(r.totalHours ? [{ l: 'Hrs', v: `${r.totalHours.toFixed(1)}h`, c: '#8B5CF6' }] : []),
+            ].map(m => (
+              <div key={m.l} className="asum-mc-time-item">
+                <span className="asum-mc-tlabel">{m.l}</span>
+                <span className="asum-mc-tval" style={{ color: m.c }}>{m.v}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {r.todayWork && (
+              <button 
+                onClick={() => { setReportData(r); setShowReportModal(true); }}
+                className="btn-icon" 
+                style={{ width: '32px', height: '32px', background: 'var(--color-surface-alt)', border: '1px solid var(--color-border)' }}
+              >
+                <FileText size={14} />
+              </button>
+            )}
+            {canCorrect && !r.correctionRequested && (
+              <button onClick={onCorrect} className="asum-correct-btn">
+                <Edit3 size={13} /> Correct
+              </button>
+            )}
+          </div>
         </div>
-        {canCorrect && !r.correctionRequested && (
-          <button onClick={onCorrect} className="asum-correct-btn">
-            <Edit3 size={13} /> Correct
-          </button>
-        )}
-      </div>
     </motion.div>
   );
 };
@@ -144,6 +154,8 @@ const AttendanceSummary = () => {
   const [selectedRecord, setSelectedRecord]           = useState(null);
   const [correctionForm, setCorrectionForm]           = useState({ requestedInTime: '', requestedOutTime: '', reason: '', proofUrl: '' });
   const [actionLoading, setActionLoading]             = useState(false);
+  const [showReportModal, setShowReportModal]         = useState(false);
+  const [reportData, setReportData]                   = useState(null);
 
   useEffect(() => {
     const onResize = () => setShowMobile(window.innerWidth < 768);
@@ -337,20 +349,36 @@ const AttendanceSummary = () => {
                         </div>
                       </td>
                       <td>
-                        {canCorrect && !r.correctionRequested && (
-                          <button
-                            onClick={() => handleOpenCorrection(r)}
-                            style={{
-                              display: 'inline-flex', alignItems: 'center', gap: '5px',
-                              background: 'var(--color-primary-light)', color: 'var(--color-primary)',
-                              border: 'none', padding: '6px 12px', borderRadius: 'var(--radius-full)',
-                              cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, fontFamily: 'inherit',
-                              transition: 'all 0.2s',
-                            }}
-                          >
-                            <Edit3 size={12} /> Request Correction
-                          </button>
-                        )}
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          {r.todayWork && (
+                            <button
+                              onClick={() => { setReportData(r); setShowReportModal(true); }}
+                              title="View Work Report"
+                              style={{
+                                display: 'inline-flex', alignItems: 'center', gap: '5px',
+                                background: 'var(--color-surface-alt)', color: 'var(--color-text-secondary)',
+                                border: '1px solid var(--color-border)', padding: '6px 12px', borderRadius: 'var(--radius-full)',
+                                cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, transition: 'all 0.2s',
+                              }}
+                            >
+                              <FileText size={12} /> View Report
+                            </button>
+                          )}
+                          {canCorrect && !r.correctionRequested && (
+                            <button
+                              onClick={() => handleOpenCorrection(r)}
+                              style={{
+                                display: 'inline-flex', alignItems: 'center', gap: '5px',
+                                background: 'var(--color-primary-light)', color: 'var(--color-primary)',
+                                border: 'none', padding: '6px 12px', borderRadius: 'var(--radius-full)',
+                                cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, fontFamily: 'inherit',
+                                transition: 'all 0.2s',
+                              }}
+                            >
+                              <Edit3 size={12} /> Request Correction
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -471,6 +499,86 @@ const AttendanceSummary = () => {
                         </button>
                       </div>
                     </form>
+                  </div>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>,
+          document.body,
+        )}
+
+        {/* ── Report View Modal ─────────────────────────── */}
+        {createPortal(
+          <AnimatePresence>
+            {showReportModal && reportData && (
+              <div className="modal-backdrop" style={{ zIndex: 1100 }}>
+                <motion.div
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  onClick={() => setShowReportModal(false)}
+                  style={{ position: 'absolute', inset: 0, background: 'rgba(15, 23, 42, 0.4)' }}
+                />
+                <motion.div
+                  initial={{ scale: 0.92, opacity: 0, y: 24 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  exit={{ scale: 0.92, opacity: 0 }}
+                  className="asum-corr-modal"
+                  style={{ maxWidth: '600px' }}
+                >
+                  <div className="asum-corr-strip" style={{ background: 'var(--gradient-accent)' }} />
+                  <div className="asum-corr-body">
+                    <div className="asum-corr-head">
+                      <div>
+                        <div className="asum-corr-icon" style={{ background: 'var(--gradient-accent)' }}>
+                          <FileText size={16} color="#fff" />
+                        </div>
+                        <h2>Work Report</h2>
+                        <p className="asum-corr-date">
+                          {new Date(reportData.date).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}
+                        </p>
+                      </div>
+                      <button className="btn-icon" onClick={() => setShowReportModal(false)}>
+                        <X size={17} />
+                      </button>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                      <section>
+                        <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--color-text-tertiary)', fontWeight: 800, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                           <CheckCircle size={14} color="var(--color-success)" /> Today's Work
+                        </h4>
+                        <div style={{ padding: '16px', background: 'var(--color-success-light)', borderRadius: 'var(--radius-lg)', border: '1px solid #BBF7D0', color: 'var(--color-text-secondary)', fontSize: '0.92rem', lineHeight: 1.6 }}>
+                          {reportData.todayWork}
+                        </div>
+                      </section>
+
+                      {reportData.pendingWork && (
+                        <section>
+                          <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--color-text-tertiary)', fontWeight: 800, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                             <Clock size={14} color="var(--color-primary)" /> Pending Tasks
+                          </h4>
+                          <div style={{ padding: '16px', background: 'var(--color-primary-light)', borderRadius: 'var(--radius-lg)', border: '1px solid #BAE6FD', color: 'var(--color-text-secondary)', fontSize: '0.92rem', lineHeight: 1.6 }}>
+                            {reportData.pendingWork}
+                          </div>
+                        </section>
+                      )}
+
+                      {reportData.issuesFaced && (
+                        <section>
+                          <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--color-text-tertiary)', fontWeight: 800, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                             <AlertCircle size={14} color="var(--color-error)" /> Blockers & Issues
+                          </h4>
+                          <div style={{ padding: '16px', background: 'var(--color-error-light)', borderRadius: 'var(--radius-lg)', border: '1px solid #FEE2E2', color: 'var(--color-text-secondary)', fontSize: '0.92rem', lineHeight: 1.6 }}>
+                            {reportData.issuesFaced}
+                          </div>
+                        </section>
+                      )}
+                    </div>
+
+                    <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+                      <button className="btn-secondary" onClick={() => setShowReportModal(false)} style={{ width: 'auto', padding: '10px 24px' }}>
+                        Close
+                      </button>
+                    </div>
                   </div>
                 </motion.div>
               </div>

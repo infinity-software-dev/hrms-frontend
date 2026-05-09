@@ -348,8 +348,8 @@ const ProfilePage = () => {
                 </button>
               ) : null}
 
-
-
+{/* // uncomment the below code to fix add the face edit functionlity  */}
+{/* 
 
 
                <button 
@@ -358,7 +358,7 @@ const ProfilePage = () => {
               >
                 {profile?.faceDescriptor?.length > 0 ? <ShieldCheck size={16} /> : <Camera size={16} />}
                 <span>{profile?.faceDescriptor?.length > 0 ? "Update biometric data" : "Register Face ID"}</span>
-              </button> 
+              </button>  */}
 
 
             </motion.div>

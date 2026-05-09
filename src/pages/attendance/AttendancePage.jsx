@@ -23,12 +23,13 @@ function formatDuration(ms) {
 }
 
 /* ── Geo status pill ── */
-const GeoStatus = ({ status, distance }) => {
+const GeoStatus = ({ status, distance, workMode = 'Office' }) => {
+  const isRemote = workMode !== 'Office';
   const statusMap = {
     checking:         { color: '#2076C7', bg: 'rgba(32,118,199,0.12)', border: 'rgba(32,118,199,0.3)', Icon: Wifi,        text: 'Verifying location…' },
-    valid:            { color: '#059669', bg: 'rgba(5,150,105,0.12)',  border: 'rgba(5,150,105,0.3)',  Icon: CheckCircle, text: `In zone · ${distance}m` },
-    invalid:          { color: '#DC2626', bg: 'rgba(220,38,38,0.12)',  border: 'rgba(220,38,38,0.3)',  Icon: WifiOff,     text: `Out of range · ${distance}m` },
-    error:            { color: '#DC2626', bg: 'rgba(220,38,38,0.12)',  border: 'rgba(220,38,38,0.3)',  Icon: WifiOff,     text: 'GPS error' },
+    valid:            { color: '#059669', bg: 'rgba(5,150,105,0.12)',  border: 'rgba(5,150,105,0.3)',  Icon: CheckCircle, text: isRemote ? 'Flexible Zone ✓' : `In zone · ${distance}m` },
+    invalid:          { color: isRemote ? '#059669' : '#DC2626', bg: isRemote ? 'rgba(5,150,105,0.12)' : 'rgba(220,38,38,0.12)',  border: isRemote ? 'rgba(5,150,105,0.3)' : 'rgba(220,38,38,0.3)',  Icon: isRemote ? CheckCircle : WifiOff,     text: isRemote ? 'Remote Mode ✓' : `Out of range · ${distance}m` },
+    error:            { color: isRemote ? '#F59E0B' : '#DC2626', bg: isRemote ? 'rgba(245,158,11,0.12)' : 'rgba(220,38,38,0.12)',  border: isRemote ? 'rgba(245,158,11,0.3)' : 'rgba(220,38,38,0.3)',  Icon: AlertCircle, text: isRemote ? 'GPS Weak (Remote)' : 'GPS error' },
     permission_denied:{ color: '#DC2626', bg: 'rgba(220,38,38,0.12)',  border: 'rgba(220,38,38,0.3)',  Icon: AlertCircle, text: 'Location blocked' },
   };
   const c = statusMap[status] || statusMap.checking;
@@ -654,7 +655,7 @@ const AttendancePage = () => {
                 <Zap size={12} /> Remote Access
               </motion.div>
             ) : (
-              <GeoStatus status={geoStatus} distance={geoDistance} />
+              <GeoStatus status={geoStatus} distance={geoDistance} workMode={currentWorkMode} />
             )}
             <button
               className="att-refresh-btn"
@@ -815,8 +816,9 @@ const AttendancePage = () => {
                       whileHover={{ scale: canAct ? 1.04 : 1 }}
                       whileTap={{ scale: 0.97 }}
                       onClick={async () => {
-                        if (!coords && !isBypassUser) { toast.error('Location unavailable'); return; }
-                        if (geoStatus === 'invalid' && !isBypassUser) { toast.error('Out of zone!'); return; }
+                        const needsGeo = currentWorkMode === 'Office' && !isBypassUser;
+                        if (!coords && needsGeo) { toast.error('Location unavailable'); return; }
+                        if (geoStatus === 'invalid' && needsGeo) { toast.error('Out of zone!'); return; }
                         if (!user.faceDescriptor?.length) { toast.error('Face ID not registered!'); return; }
                         const ok = await loadModels();
                         if (!ok) return;
@@ -842,9 +844,9 @@ const AttendancePage = () => {
                       className="att-geo-hint"
                     >
                       {geoStatus === 'checking' && '📡 Verifying your location…'}
-                      {geoStatus === 'invalid' && `📍 You are ${geoDistance}m from office (out of range)`}
+                      {geoStatus === 'invalid' && (currentWorkMode === 'Office' ? `📍 You are ${geoDistance}m from office (out of range)` : '✅ Remote mode: Location verified')}
                       {geoStatus === 'permission_denied' && '🔒 Location blocked — see banner above'}
-                      {geoStatus === 'error' && '⚠️ GPS unavailable — tap refresh'}
+                      {geoStatus === 'error' && (currentWorkMode === 'Office' ? '⚠️ GPS unavailable — tap refresh' : '📡 GPS weak, but remote mode is active')}
                     </motion.p>
                   )}
                 </div>
