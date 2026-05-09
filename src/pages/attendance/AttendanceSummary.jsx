@@ -5,7 +5,7 @@ import AppShell from '../../components/layout/AppShell';
 import {
   Calendar, ChevronLeft, ChevronRight, Clock, Loader2,
   X, Send, Camera, CheckCircle, TrendingUp,
-  AlertCircle, BarChart2, Filter, Edit3,
+  AlertCircle, BarChart2, Filter, Edit3, FileText,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
