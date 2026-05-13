@@ -5,6 +5,7 @@ import ProtectedRoute from './ProtectedRoute';
 
 import Login from '../pages/auth/Login';
 import Dashboard from '../pages/dashboard/Dashboard';
+import HRDashboard from '../pages/dashboard/HRDashboard';
 import AttendancePage from '../pages/attendance/AttendancePage';
 import AttendanceSummary from '../pages/attendance/AttendanceSummary';
 import AdminAttendance from '../pages/attendance/AdminAttendance';
@@ -57,6 +58,10 @@ const AppRouter = () => (
 
         <Route path="/dashboard" element={
           <ProtectedRoute allowedRoles={ALL_ROLES}><Dashboard /></ProtectedRoute>
+        } />
+
+        <Route path="/hr/dashboard" element={
+          <ProtectedRoute allowedRoles={['SuperUser', 'HR', 'Director', 'VP', 'GM']}><HRDashboard /></ProtectedRoute>
         } />
 
         <Route path="/profile" element={

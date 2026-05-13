@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '../../api/axios';
 import AppShell from '../../components/layout/AppShell';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Users, ChevronRight, Loader2, Edit, Power, PowerOff, ChevronLeft } from 'lucide-react';
+import { Plus, Search, Users, ChevronRight, Loader2, Edit, Power, PowerOff, ChevronLeft, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import theme from '../../theme';
@@ -80,6 +80,32 @@ const EmployeeList = () => {
     if (page < totalPages) setPage(page + 1);
   };
 
+  const handleExportExcel = async () => {
+    const tId = toast.loading('Generating Excel...');
+    try {
+      const params = { 
+        search, 
+        status: statusFilter || undefined, 
+        role: roleFilter || undefined 
+      };
+      const response = await api.get('/employees/export/excel', { 
+        params, 
+        responseType: 'blob' 
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Employee_Records_${new Date().toISOString().split('T')[0]}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success('Export successful', { id: tId });
+    } catch (err) {
+      toast.error('Failed to export Excel', { id: tId });
+    }
+  };
+
   return (
     <AppShell>
       <div className="page-wrapper fade-in" style={{ padding: '28px' }}>
@@ -89,11 +115,18 @@ const EmployeeList = () => {
             <h1 style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--color-text)' }}>Employees</h1>
             <p style={{ color: 'var(--color-text-secondary)', marginTop: '4px' }}>{total} total employees</p>
           </div>
-          {CAN_CREATE.includes(user?.role) && (
-            <button className="btn-primary" onClick={() => navigate('/employees/create')}>
-              <Plus size={18} /> Add Employee
-            </button>
-          )}
+          <div style={{ display: 'flex', gap: '10px' }}>
+            {CAN_CREATE.includes(user?.role) && (
+              <button className="btn-secondary" onClick={handleExportExcel} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Download size={18} /> Export Excel
+              </button>
+            )}
+            {CAN_CREATE.includes(user?.role) && (
+              <button className="btn-primary" onClick={() => navigate('/employees/create')}>
+                <Plus size={18} /> Add Employee
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Filters */}

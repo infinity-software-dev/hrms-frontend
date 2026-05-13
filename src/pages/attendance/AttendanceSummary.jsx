@@ -83,7 +83,7 @@ const StatCard = ({ label, value, gradient, icon: Icon, suffix = '' }) => (
 );
 
 /* ── Mobile Record Card ─────────────────────────────── */
-const MobileRecordCard = ({ r, fmtT, canCorrect, onCorrect }) => {
+const MobileRecordCard = ({ r, fmtT, canCorrect, onCorrect, setReportData, setShowReportModal }) => {
   const date = new Date(r.date);
   return (
     <motion.div
@@ -170,7 +170,12 @@ const AttendanceSummary = () => {
       const { data } = await api.get('/attendance/my-summary', {
         params: { from: start.toISOString().split('T')[0], to: end.toISOString().split('T')[0] },
       });
-      setRecords(data.data.records);
+      const processed = (data.data.records || []).map(r => ({
+        ...(r.myAttendance || {}),
+        ...r,
+        isAbsent: r.status === 'A'
+      }));
+      setRecords(processed);
       setSummary(data.data.summary);
     } catch (_) {}
     setLoading(false);
@@ -287,6 +292,8 @@ const AttendanceSummary = () => {
                       fmtT={fmtT}
                       canCorrect={canCorrect}
                       onCorrect={() => handleOpenCorrection(r)}
+                      setReportData={setReportData}
+                      setShowReportModal={setShowReportModal}
                     />
                   );
                 })}

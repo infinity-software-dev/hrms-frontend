@@ -22,17 +22,27 @@ const navGroups = [
   {
     label: 'Overview',
     items: [
-      { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', roles: ['SuperUser', 'HR', 'Manager', 'Director', 'VP', 'GM', 'Employee', 'Intern'] },
-      { icon: User, label: 'My Profile', path: '/profile', roles: ['SuperUser', 'HR', 'Manager', 'Director', 'VP', 'GM', 'Employee', 'Intern'] },
+      { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', roles: ['SuperUser', 'Manager', 'Director', 'VP', 'GM', 'Employee', 'Intern'] },
+      { icon: LayoutDashboard, label: 'HR Dashboard', path: '/hr/dashboard', roles: ['SuperUser', 'HR', 'Director', 'VP', 'GM'] },
+      { icon: User, label: 'My Profile', path: '/profile', roles: ['SuperUser', 'Manager', 'Director', 'VP', 'GM', 'Employee', 'Intern'] },
+    ]
+  },
+
+  {
+    label: 'Attendance Operations',
+    items: [
+      { icon: Users, label: 'Mark Attendance', path: '/attendance', roles: ['SuperUser', 'Manager', 'Director', 'VP', 'GM', 'Employee'] },
+      { icon: Users, label: 'Attendance Summary', path: '/attendance/summary', roles: ['SuperUser', 'Manager', 'Director', 'VP', 'GM', 'Employee'] },
+
     ]
   },
   {
-    label: 'Team Management',
+    label: 'Management',
     items: [
       {
         icon: CalendarDays,
         label: 'Team Management',
-        roles: ['SuperUser', 'HR', 'Manager', 'Director', 'VP', 'GM', 'Employee', 'Intern'],
+        roles: ['Manager'],
         children: [
           { label: 'Leave Approvals', path: '/leave-approvals', roles: ['SuperUser', 'HR', 'Director', 'VP', 'GM', 'Manager'] },
           { label: 'Reports', path: '/attendance/reports', roles: ['SuperUser', 'HR', 'Director', 'VP', 'GM', 'Manager'] },
@@ -42,22 +52,70 @@ const navGroups = [
       },
     ]
   },
-  {
-    label: 'HR Operations',
-    items: [
-      { icon: Users, label: 'Attendance Management', path: '/attendance/employee/attendance', roles: ['SuperUser', 'HR', 'Director', 'VP', 'GM'] },
-      { icon: DollarSign, label: 'Payroll', roles: ['SuperUser', 'HR', 'Manager', 'Director', 'VP', 'GM', 'Employee', 'Intern'], children: [] },
-      { icon: Users, label: 'Employees', path: '/employees', roles: ['SuperUser', 'HR', 'Director', 'VP', 'GM'] },
-      { icon: Users, label: 'Payroll Admin', path: '/payroll', roles: ['SuperUser', 'HR', 'Director', 'VP', 'GM'] },
-      { icon: Calendar, label: 'Announcements', path: '/announcements', roles: ['SuperUser', 'Manager', 'Director', 'VP', 'GM', 'Employee', 'Intern'] },
-      { icon: Calendar, label: 'Manage Announcements', path: '/manage-announcements', roles: ['SuperUser', 'HR', 'Director', 'VP', 'GM', ] },
-      { icon: Calendar, label: 'Holiday Calendar', path: '/holidays', roles: ['SuperUser', 'HR', 'Manager', 'Director', 'VP', 'GM', 'Employee', 'Intern'] },
-      { icon: Calendar, label: 'My Leaves', path: '/leaves', roles: ['SuperUser', 'HR', 'Manager', 'Director', 'VP', 'GM', 'Employee', 'Intern'] },
-      { icon: Calendar, label: 'Leave Dashboard', path: '/leave-dashboard', roles: ['SuperUser', 'HR', 'Director', 'VP', 'GM'] },
-      { icon: Calendar, label: 'My Pay Slips', path: '/payroll/my', roles: ['SuperUser', 'HR', 'Manager', 'Director', 'VP', 'GM', 'Employee', 'Intern'] },
-      { icon: Calendar, label: 'Gurukul', path: '/gurukul', roles: ['SuperUser', 'HR', 'Manager', 'Director', 'VP', 'GM', 'Employee', 'Intern'] },
 
-        { icon: Calendar, label: 'Special Login', path: '/special-logins', roles: ['SuperUser' ] },
+
+
+  //  new cahnegs
+
+  {
+    label: 'Overview',
+    items: [
+      { icon: Users, label: 'Employees', path: '/employees', roles: ['SuperUser', 'HR', 'Director', 'VP', 'GM'] },
+      {
+        icon: CalendarDays,
+        label: 'Attendance Management',
+        roles: ['SuperUser', 'HR', 'Director', 'VP', 'GM'],
+        children: [
+          // { label: 'Leave Approvals', path: '/leave-approvals', roles: ['SuperUser', 'HR', 'Director', 'VP', 'GM', 'Manager'] },
+          { icon: Users, label: 'Employee Attendance', path: '/attendance/employee/attendance', roles: ['SuperUser', 'HR', 'Director', 'VP', 'GM'] },
+          { label: 'Corrections Requests', path: '/attendance/corrections', roles: ['SuperUser', 'HR', 'Director', 'VP', 'GM'] },
+          { label: 'Reports', path: '/attendance/reports', roles: ['SuperUser',  'Director', 'VP', 'GM', 'Manager'] },
+          { label: 'Corrections History', path: '/attendance/correction-history', roles: ['SuperUser', 'HR', 'Director', 'VP', 'GM', 'Manager'] },
+          
+        ]
+      },
+
+
+    ]
+
+  },
+
+  {
+    label: 'Overview1',
+    items: [
+      {
+        icon: CalendarDays,
+        label: 'Leave Management',
+        roles: ['SuperUser', 'HR', 'Director', 'VP', 'GM', 'Employee', 'Intern'],
+        children: [
+
+          { label: 'Leave Approvals', path: '/leave-approvals', roles: ['SuperUser', 'HR', 'Director', 'VP', 'GM', 'Manager'] },
+          { icon: Calendar, label: 'Leave Dashboard', path: '/leave-dashboard', roles: ['SuperUser', 'HR', 'Director', 'VP', 'GM'] },
+ 
+        ]
+      },
+
+    ]
+
+  },
+
+
+
+
+  {
+    label: 'Operations',
+    items: [
+      { icon: Users, label: 'Payroll Admin', path: '/payroll', roles: ['SuperUser', 'HR', 'Director', 'VP', 'GM'] },
+      { icon: Calendar, label: 'My Pay Slips', path: '/payroll/my', roles: ['SuperUser', 'Manager', 'Director', 'VP', 'GM', 'Employee', 'Intern'] },
+      { icon: Calendar, label: 'My Leaves', path: '/leaves', roles: ['SuperUser', 'Manager', 'Director', 'VP', 'GM', 'Employee', 'Intern'] },
+
+      { icon: DollarSign, label: 'Payroll', roles: ['SuperUser', 'HR', 'Manager', 'Director', 'VP', 'GM', 'Employee', 'Intern'], children: [] },
+      { icon: Calendar, label: 'Holiday Calendar', path: '/holidays', roles: ['SuperUser', 'HR', 'Manager', 'Director', 'VP', 'GM', 'Employee', 'Intern'] },
+      { icon: Calendar, label: 'Manage Announcements', path: '/manage-announcements', roles: ['SuperUser', 'HR', 'Director', 'VP', 'GM',] },
+      { icon: Calendar, label: 'Gurukul', path: '/gurukul', roles: ['SuperUser', 'HR', 'Manager', 'Director', 'VP', 'GM', 'Employee', 'Intern'] },
+      { icon: Calendar, label: 'Special Login', path: '/special-logins', roles: ['SuperUser'] },
+
+
 
 
 
@@ -152,7 +210,7 @@ const styles = {
     alignItems: 'center',
     gap: '16px',
     padding: '10px 12px',
-   
+
     borderRadius: '12px',
     cursor: 'pointer',
     position: 'relative',
