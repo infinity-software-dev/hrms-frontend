@@ -83,7 +83,8 @@ const StatCard = ({ label, value, gradient, icon: Icon, suffix = '' }) => (
 );
 
 /* ── Mobile Record Card ─────────────────────────────── */
-const MobileRecordCard = ({ r, fmtT, canCorrect, onCorrect, setReportData, setShowReportModal }) => {
+const MobileRecordCard = ({ r, fmtT, canCorrect, onCorrect, onViewReport }) => {
+  const att = r.myAttendance || {};
   const date = new Date(r.date);
   return (
     <motion.div
@@ -99,11 +100,11 @@ const MobileRecordCard = ({ r, fmtT, canCorrect, onCorrect, setReportData, setSh
         </div>
         <div className="asum-mc-badges">
           <StatusBadge status={r.status} />
-          {r.isLate && !r.isWeekOff && (
-            <span className="asum-late-chip">Late {r.lateMinutes}m</span>
+          {att.isLate && !r.isWeekOff && (
+            <span className="asum-late-chip">Late {att.lateMinutes}m</span>
           )}
-          {r.correctionRequested && (
-            <span className="asum-corr-chip">{r.correctionStatus?.split('_')[1] || 'Correction Pending'}</span>
+          {att.correctionRequested && (
+            <span className="asum-corr-chip">{att.correctionStatus?.split('_')[1] || 'Correction Pending'}</span>
           )}
         </div>
       </div>
@@ -111,9 +112,9 @@ const MobileRecordCard = ({ r, fmtT, canCorrect, onCorrect, setReportData, setSh
         <div className="asum-mc-bottom">
           <div className="asum-mc-times">
             {[
-              { l: 'In',    v: r.isWeekOff || r.isAbsent ? '—' : fmtT(r.inTime),  c: 'var(--color-success)' },
-              { l: 'Out',   v: r.isWeekOff || r.isAbsent ? '—' : fmtT(r.outTime), c: 'var(--color-primary)' },
-              ...(r.totalHours ? [{ l: 'Hrs', v: `${r.totalHours.toFixed(1)}h`, c: '#8B5CF6' }] : []),
+              { l: 'In',    v: r.isWeekOff || r.status === 'A' ? '—' : fmtT(att.inTime),  c: 'var(--color-success)' },
+              { l: 'Out',   v: r.isWeekOff || r.status === 'A' ? '—' : fmtT(att.outTime), c: 'var(--color-primary)' },
+              ...(att.totalHours ? [{ l: 'Hrs', v: `${att.totalHours.toFixed(1)}h`, c: '#8B5CF6' }] : []),
             ].map(m => (
               <div key={m.l} className="asum-mc-time-item">
                 <span className="asum-mc-tlabel">{m.l}</span>
@@ -122,16 +123,16 @@ const MobileRecordCard = ({ r, fmtT, canCorrect, onCorrect, setReportData, setSh
             ))}
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
-            {r.todayWork && (
+            {att.todayWork && (
               <button 
-                onClick={() => { setReportData(r); setShowReportModal(true); }}
+                onClick={() => onViewReport(att)}
                 className="btn-icon" 
                 style={{ width: '32px', height: '32px', background: 'var(--color-surface-alt)', border: '1px solid var(--color-border)' }}
               >
                 <FileText size={14} />
               </button>
             )}
-            {canCorrect && !r.correctionRequested && (
+            {canCorrect && !att.correctionRequested && (
               <button onClick={onCorrect} className="asum-correct-btn">
                 <Edit3 size={13} /> Correct
               </button>
@@ -170,12 +171,7 @@ const AttendanceSummary = () => {
       const { data } = await api.get('/attendance/my-summary', {
         params: { from: start.toISOString().split('T')[0], to: end.toISOString().split('T')[0] },
       });
-      const processed = (data.data.records || []).map(r => ({
-        ...(r.myAttendance || {}),
-        ...r,
-        isAbsent: r.status === 'A'
-      }));
-      setRecords(processed);
+      setRecords(data.data.records);
       setSummary(data.data.summary);
     } catch (_) {}
     setLoading(false);
@@ -189,7 +185,12 @@ const AttendanceSummary = () => {
   const monthName = new Date(year, month).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
   const avgHours = summary.present > 0 ? (summary.totalHours / summary.present).toFixed(1) : '—';
 
-  const handleOpenCorrection = (record) => {
+  const handleOpenCorrection = (dayData) => {
+    const record = dayData.myAttendance;
+    if (!record) {
+      toast.error('No attendance record found for this day');
+      return;
+    }
     setSelectedRecord(record);
     setCorrectionForm({
       requestedInTime:  record.inTime  ? new Date(record.inTime).toTimeString().slice(0, 5)  : '09:30',
@@ -203,11 +204,17 @@ const AttendanceSummary = () => {
     e.preventDefault();
     setActionLoading(true);
     try {
-      const date = new Date(selectedRecord.date).toISOString().split('T')[0];
+      const baseDate = new Date(selectedRecord.date);
+      const [inH, inM] = correctionForm.requestedInTime.split(':');
+      const inDate = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), parseInt(inH), parseInt(inM));
+      
+      const [outH, outM] = correctionForm.requestedOutTime.split(':');
+      const outDate = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), parseInt(outH), parseInt(outM));
+
       await api.post(`/attendance/correction/${selectedRecord._id}`, {
         reason: correctionForm.reason,
-        requestedInTime:  `${date}T${correctionForm.requestedInTime}:00`,
-        requestedOutTime: `${date}T${correctionForm.requestedOutTime}:00`,
+        requestedInTime:  inDate.toISOString(),
+        requestedOutTime: outDate.toISOString(),
         proofUrl: correctionForm.proofUrl,
       });
       toast.success('Correction request submitted!');
@@ -292,8 +299,7 @@ const AttendanceSummary = () => {
                       fmtT={fmtT}
                       canCorrect={canCorrect}
                       onCorrect={() => handleOpenCorrection(r)}
-                      setReportData={setReportData}
-                      setShowReportModal={setShowReportModal}
+                      onViewReport={(att) => { setReportData(att); setShowReportModal(true); }}
                     />
                   );
                 })}
@@ -320,6 +326,7 @@ const AttendanceSummary = () => {
                     </td>
                   </tr>
                 ) : records.map((r, i) => {
+                  const att = r.myAttendance || {};
                   const date = new Date(r.date);
                   const isWkend = date.getDay() === 0;
                   const canCorrect = r.status && !['A', 'H', 'WO'].includes(r.status);
@@ -331,35 +338,35 @@ const AttendanceSummary = () => {
                       <td style={{ color: 'var(--color-text-secondary)', fontSize: '0.84rem' }}>
                         {date.toLocaleDateString('en-IN', { weekday: 'short' })}
                       </td>
-                      <td style={{ fontWeight: r.inTime ? 700 : 400, color: r.inTime ? 'var(--color-success)' : 'var(--color-text-tertiary)', fontSize: '0.88rem' }}>
-                        {r.isWeekOff || r.isAbsent ? '—' : fmtT(r.inTime)}
+                      <td style={{ fontWeight: att.inTime ? 700 : 400, color: att.inTime ? 'var(--color-success)' : 'var(--color-text-tertiary)', fontSize: '0.88rem' }}>
+                        {r.isWeekOff || r.status === 'A' ? '—' : fmtT(att.inTime)}
                       </td>
-                      <td style={{ fontWeight: r.outTime ? 700 : 400, color: r.outTime ? 'var(--color-primary)' : 'var(--color-text-tertiary)', fontSize: '0.88rem' }}>
-                        {r.isWeekOff || r.isAbsent ? '—' : fmtT(r.outTime)}
+                      <td style={{ fontWeight: att.outTime ? 700 : 400, color: att.outTime ? 'var(--color-primary)' : 'var(--color-text-tertiary)', fontSize: '0.88rem' }}>
+                        {r.isWeekOff || r.status === 'A' ? '—' : fmtT(att.outTime)}
                       </td>
-                      <td style={{ color: '#8B5CF6', fontSize: '0.85rem', fontVariantNumeric: 'tabular-nums', fontWeight: r.totalHours ? 700 : 400 }}>
-                        {r.totalHours ? `${r.totalHours.toFixed(1)}h` : '—'}
+                      <td style={{ color: '#8B5CF6', fontSize: '0.85rem', fontVariantNumeric: 'tabular-nums', fontWeight: att.totalHours ? 700 : 400 }}>
+                        {att.totalHours ? `${att.totalHours.toFixed(1)}h` : '—'}
                       </td>
                       <td>
                         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
                           <StatusBadge status={r.status} />
-                          {r.isLate && !r.isWeekOff && (
+                          {att.isLate && !r.isWeekOff && (
                             <span style={{ fontSize: '0.7rem', color: 'var(--color-warning)', background: 'var(--color-warning-light)', padding: '2px 8px', borderRadius: 'var(--radius-full)', fontWeight: 700, border: '1px solid #FDE68A' }}>
-                              Late {r.lateMinutes}m
+                              Late {att.lateMinutes}m
                             </span>
                           )}
-                          {r.correctionRequested && (
+                          {att.correctionRequested && (
                             <span style={{ fontSize: '0.7rem', color: 'var(--color-primary)', background: 'var(--color-primary-light)', padding: '2px 8px', borderRadius: 'var(--radius-full)', fontWeight: 700 }}>
-                              {r.correctionStatus?.split('_')[1] || 'Pending'}
+                              {att.correctionStatus?.split('_')[1] || 'Pending'}
                             </span>
                           )}
                         </div>
                       </td>
                       <td>
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                          {r.todayWork && (
+                          {att.todayWork && (
                             <button
-                              onClick={() => { setReportData(r); setShowReportModal(true); }}
+                              onClick={() => { setReportData(att); setShowReportModal(true); }}
                               title="View Work Report"
                               style={{
                                 display: 'inline-flex', alignItems: 'center', gap: '5px',
@@ -371,7 +378,7 @@ const AttendanceSummary = () => {
                               <FileText size={12} /> View Report
                             </button>
                           )}
-                          {canCorrect && !r.correctionRequested && (
+                          {canCorrect && !att.correctionRequested && (
                             <button
                               onClick={() => handleOpenCorrection(r)}
                               style={{

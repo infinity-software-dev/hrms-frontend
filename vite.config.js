@@ -8,6 +8,8 @@ export default defineConfig({
 
   // http://192.168.1.53:5000
   // https://hrms-v-2-5-backend.vercel.app/
+  // ['https://hrmsv2.infinityarthvishva.com/'],
+  // http://localhost:5173/
   server: {
     port: 5173,
     host: true,

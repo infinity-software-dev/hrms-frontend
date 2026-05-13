@@ -560,7 +560,7 @@ const AttendancePage = () => {
 
   const isCheckedIn     = !!todayRecord?.inTime;
   const isCheckedOut    = !!todayRecord?.outTime;
-  const currentWorkMode = todayRecord?.workMode || workMode;
+  const currentWorkMode = isCheckedIn ? (todayRecord?.workMode || workMode) : workMode;
 
   const fmtT = useCallback(
     (s) => s ? new Date(s).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) : '—',
@@ -759,7 +759,11 @@ const AttendancePage = () => {
                         </div>
                       </div>
                       <h2 className="att-state-heading">Ready to Begin?</h2>
-                      <p className="att-state-sub">Ensure you're within the office zone, then check in securely with face verification.</p>
+                      <p className="att-state-sub">
+                        {workMode === 'Office' 
+                          ? "Ensure you're within the office zone, then check in securely with face verification."
+                          : `Check in securely from any location using ${workMode} mode.`}
+                      </p>
                     </motion.div>
                   )}
 
