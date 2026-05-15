@@ -35,3 +35,5 @@ export const getLeaveHistory = () => api.get('/leaves/history');
 
 // ── COMP-OFF HISTORY ──
 export const getCompOffBalanceHistory = () => api.get('/leaves/comp-off-history');
+// ── ADJUST BALANCE (Admin only) ──
+export const adjustLeaveBalance = (data) => api.post('/leaves/adjust-balance', data);

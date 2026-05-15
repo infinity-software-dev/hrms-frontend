@@ -83,6 +83,8 @@ const LeaveBalanceHistory = () => {
         return <RefreshCw size={16} />;
       case 'CarryOver':
         return <ArrowRightLeft size={16} />;
+      case 'Adjustment':
+        return <AlertCircle size={16} />;
       default:
         return null;
     }
@@ -98,6 +100,8 @@ const LeaveBalanceHistory = () => {
         return 'badge bg-amber-50 text-amber-600 border border-amber-200';
       case 'CarryOver':
         return 'badge bg-indigo-50 text-indigo-600 border border-indigo-200';
+      case 'Adjustment':
+        return 'badge bg-blue-50 text-blue-600 border border-blue-200';
       default:
         return 'badge';
     }
@@ -165,6 +169,7 @@ const LeaveBalanceHistory = () => {
             <option value="Accrual">Accrual</option>
             <option value="Deduction">Deduction</option>
             <option value="CarryOver">CarryOver</option>
+            <option value="Adjustment">Adjustment</option>
             <option value="Reset">Reset</option>
           </select>
         </div>
@@ -224,6 +229,8 @@ const LeaveBalanceHistory = () => {
                       className={
                         item.type === 'Deduction'
                           ? 'text-rose-600 font-bold'
+                          : item.type === 'Adjustment'
+                          ? 'text-blue-600 font-bold'
                           : 'text-emerald-600 font-bold'
                       }
                     >

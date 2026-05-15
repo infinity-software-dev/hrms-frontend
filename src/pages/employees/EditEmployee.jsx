@@ -5,9 +5,11 @@ import toast from 'react-hot-toast';
 import AppShell from '../../components/layout/AppShell';
 import { Loader2, Upload, User, ArrowLeft, Check, ChevronDown, ChevronUp, FileText } from 'lucide-react';
 
-const ROLES = ['SuperUser', 'HR', 'Manager', 'Director', 'VP', 'GM', 'Employee', 'Intern'];
-const DEPARTMENTS = ['IT', 'HR', 'Finance', 'Marketing', 'Accounting', 'Operations', 'General Manager'];
-const POSITIONS = ['Software Developer', 'Senior Developer', 'Android Developer', 'iOS Developer', 'Data Analyst', 'UI/UX Designer', 'HR Executive', 'Accountant', 'Manager', 'Team Lead', 'Project Manager'];
+import { Eye, EyeOff, XCircle, Info, File } from 'lucide-react';
+
+const ROLES = ['SuperUser', 'HR', 'Manager', 'Director', 'VP', 'GM', 'Employee', 'Intern', 'fresher'];
+const DEPARTMENTS = ['IT', 'HR', 'Finance', 'Marketing', 'Accounting', 'Operations', 'General Manager', 'Accountant'];
+const POSITIONS = ['Software Developer', 'Senior Developer', 'Android Developer', 'iOS Developer', 'Data Analyst', 'UI/UX Designer', 'HR Executive', 'Accountant', 'Manager', 'Team Lead', 'Project Manager', 'Director'];
 const GRADUATION_COURSES = ['B.Tech', 'B.E.', 'B.Sc', 'B.Com', 'B.A.', 'BCA', 'Other'];
 const PG_COURSES = ['M.Tech', 'M.E.', 'M.Sc', 'M.Com', 'M.A.', 'MCA', 'MBA', 'Other'];
 const GENDERS = ['Male', 'Female', 'Other'];
@@ -41,42 +43,83 @@ const FormSection = ({ title, defaultOpen = true, children }) => {
   );
 };
 
-const Field = ({ label, required, children, fullWidth }) => (
-  <div style={{ gridColumn: fullWidth ? '1 / -1' : 'auto' }}>
-    <label className="form-label">{label}</label>
+const Field = ({ label, required, children, fullWidth, error, info }) => (
+  <div style={{ gridColumn: fullWidth ? '1 / -1' : 'auto', marginBottom: '16px' }}>
+    <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', fontSize: '0.85rem', fontWeight: 600 }}>
+      {label} {required && <span style={{ color: '#EF4444' }}>*</span>}
+      {info && <div title={info} style={{ color: 'var(--color-text-tertiary)', cursor: 'help' }}><Info size={14} /></div>}
+    </label>
     {children}
+    {error && (
+      <div style={{ color: '#EF4444', fontSize: '0.75rem', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 500 }}>
+        <XCircle size={12} /> {error}
+      </div>
+    )}
   </div>
 );
 
-const FileUploadField = ({ label, onChange, file, existingUrl, accept = ".pdf,.jpg,.jpeg,.png", required }) => {
-  const hasContent = file || existingUrl;
-  const isPdf = existingUrl?.toLowerCase().endsWith('.pdf');
-  
+const FileUploadField = ({ label, onChange, file, existingUrl, accept = ".pdf,.jpg,.jpeg,.png", required, error, onRemove }) => {
+  const [preview, setPreview] = useState(null);
+
+  useEffect(() => {
+    if (file && file.type.startsWith('image/')) {
+      const url = URL.createObjectURL(file);
+      setPreview(url);
+      return () => URL.revokeObjectURL(url);
+    } else {
+      setPreview(null);
+    }
+  }, [file]);
+
+  const showExisting = existingUrl && !file;
+  const isExistingImage = existingUrl && (existingUrl.match(/\.(jpg|jpeg|png|webp|gif)/i) || existingUrl.includes('cloudinary'));
+
   return (
-    <div style={{ border: '1px dashed var(--color-border)', borderRadius: '12px', padding: '16px', textAlign: 'center', background: hasContent ? 'rgba(16,185,129,0.05)' : 'var(--color-surface-alt)', transition: 'all 0.2s', position: 'relative' }}>
-      <label style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-        <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: hasContent ? 'rgba(16,185,129,0.1)' : 'var(--color-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: hasContent ? '#10B981' : 'var(--color-text-tertiary)' }}>
-          {file ? <Check size={20} /> : existingUrl ? (isPdf ? <FileText size={20}/> : <Check size={20}/>) : <Upload size={20} />}
-        </div>
-        <div>
-          <div style={{ fontWeight: 600, fontSize: '0.9rem', color: hasContent ? '#10B981' : 'var(--color-text)' }}>
-            {file ? file.name : existingUrl ? `Replace ${label}` : `Upload ${label}`} {required && !hasContent && <span style={{ color: '#EF4444' }}>*</span>}
+    <div style={{ 
+      border: `1.5px dashed ${error ? '#EF4444' : 'var(--color-border)'}`, 
+      borderRadius: '14px', 
+      padding: '16px', 
+      textAlign: 'center', 
+      background: error ? 'rgba(239,68,68,0.02)' : (file || existingUrl) ? 'rgba(32,118,199,0.03)' : 'var(--color-surface-alt)', 
+      transition: 'all 0.2s', 
+      position: 'relative' 
+    }}>
+      {(file || existingUrl) && (
+        <button 
+          type="button"
+          onClick={(e) => { e.preventDefault(); onRemove(); }}
+          style={{ position: 'absolute', top: '8px', right: '8px', background: '#EF4444', color: '#fff', border: 'none', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 2, boxShadow: '0 2px 8px rgba(239,68,68,0.3)' }}
+        >
+          <XCircle size={14} />
+        </button>
+      )}
+
+      <label style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+        {preview ? (
+          <img src={preview} alt="Preview" style={{ width: '60px', height: '60px', borderRadius: '10px', objectFit: 'cover', border: '2px solid #fff', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+        ) : showExisting && isExistingImage ? (
+           <img src={existingUrl} alt="Existing" style={{ width: '60px', height: '60px', borderRadius: '10px', objectFit: 'cover', border: '2px solid #fff', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+        ) : (file || existingUrl) ? (
+          <div style={{ width: '44px', height: '44px', borderRadius: '10px', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2076C7', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+            <File size={22} />
+          </div>
+        ) : (
+          <div style={{ width: '44px', height: '44px', borderRadius: '10px', background: 'var(--color-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-tertiary)', border: '1px solid var(--color-border)' }}>
+            <Upload size={20} />
+          </div>
+        )}
+
+        <div style={{ maxWidth: '100%' }}>
+          <div style={{ fontWeight: 700, fontSize: '0.85rem', color: (file || existingUrl) ? '#2076C7' : 'var(--color-text)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {file ? file.name : existingUrl ? `Current ${label}` : `Upload ${label}`}
           </div>
           {existingUrl && !file && (
-            <a 
-              href={existingUrl} 
-              target="_blank" 
-              rel="noreferrer" 
-              onClick={e => e.stopPropagation()} 
-              style={{ fontSize: '0.75rem', color: '#2076C7', textDecoration: 'underline', marginTop: '4px', display: 'inline-block' }}
-            >
-              View Current File
-            </a>
+             <a href={existingUrl} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ fontSize: '0.7rem', color: '#2076C7', fontWeight: 600, marginTop: '4px', display: 'block' }}>View Document</a>
           )}
-          {!hasContent && <div style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>Click to browse</div>}
         </div>
         <input type="file" accept={accept} onChange={(e) => onChange(e.target.files[0])} style={{ display: 'none' }} />
       </label>
+      {error && <div style={{ color: '#EF4444', fontSize: '0.7rem', marginTop: '8px', fontWeight: 600 }}>{error}</div>}
     </div>
   );
 };
@@ -89,6 +132,10 @@ const EditEmployee = () => {
   const [employeeCode, setEmployeeCode] = useState('');
   const [imagePreview, setImagePreview] = useState(null);
   const [managementEmployees, setManagementEmployees] = useState([]);
+  const [showPassword, setShowPassword] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [customDepts, setCustomDepts] = useState([]);
+  const [customPositions, setCustomPositions] = useState([]);
   
   const [form, setForm] = useState({
     name: '', email: '', mobileNumber: '', alternateMobileNumber: '',
@@ -115,6 +162,16 @@ const EditEmployee = () => {
   useEffect(() => {
     fetchEmployee();
     fetchManagement();
+    
+    // Fetch unique depts/positions
+    api.get('/employees/departments').then(({ data }) => {
+      const newDepts = data.data.filter(d => !DEPARTMENTS.includes(d));
+      setCustomDepts(newDepts);
+    });
+    api.get('/employees/positions').then(({ data }) => {
+      const newPos = data.data.filter(p => !POSITIONS.includes(p));
+      setCustomPositions(newPos);
+    });
   }, [id]);
 
   const fetchManagement = async () => {
@@ -173,6 +230,13 @@ const EditEmployee = () => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+    
+    let val = type === 'checkbox' ? checked : value;
+    if (typeof val === 'string') {
+      if (name === 'email') val = val.toLowerCase().trim();
+      if (name === 'mobileNumber' || name === 'alternateMobileNumber') val = val.replace(/[^\d+]/g, '');
+    }
+
     if (name === 'sameAsCurrent') {
       setForm(f => ({
         ...f, sameAsCurrent: checked,
@@ -180,7 +244,6 @@ const EditEmployee = () => {
       }));
     } else {
       setForm(f => {
-        const val = type === 'checkbox' ? checked : value;
         const newForm = { ...f, [name]: val };
         if (name === 'currentAddress' && f.sameAsCurrent) {
           newForm.permanentAddress = val;
@@ -188,15 +251,36 @@ const EditEmployee = () => {
         return newForm;
       });
     }
+
+    if (errors[name]) {
+      setErrors(prev => {
+        const newErrs = { ...prev };
+        delete newErrs[name];
+        return newErrs;
+      });
+    }
   };
 
   const handleFileChange = (name, file) => {
-    if (!file) return;
     if (name === 'profileImage') {
-      setImagePreview(URL.createObjectURL(file));
-      setFiles(f => ({ ...f, profileImage: file }));
+      if (file) {
+        setImagePreview(URL.createObjectURL(file));
+        setFiles(f => ({ ...f, profileImage: file }));
+      } else {
+        setImagePreview(null);
+        setFiles(f => ({ ...f, profileImage: null }));
+      }
     } else {
       setFiles(f => ({ ...f, [name]: file }));
+      if (!file) setExistingUrls(prev => ({ ...prev, [name]: null }));
+    }
+    
+    if (errors[name]) {
+      setErrors(prev => {
+        const newErrs = { ...prev };
+        delete newErrs[name];
+        return newErrs;
+      });
     }
   };
 
@@ -216,30 +300,50 @@ const EditEmployee = () => {
   };
 
   const validate = () => {
-    if (!form.name) return 'Name is required';
-    if (!form.email) return 'Email is required';
-    if (!form.mobileNumber) return 'Mobile number is required';
-    if (form.password && form.password !== form.confirmPassword) return 'Passwords do not match';
-    if (!form.gender) return 'Gender is required';
-    if (!form.dateOfBirth) return 'Date of Birth is required';
-    if (!form.maritalStatus) return 'Marital Status is required';
-    if (!form.currentAddress || !form.permanentAddress) return 'Addresses are required';
-    if (form.experienceType === 'Experienced' && !form.totalExperienceYears) return 'Experience years are required';
-    if (!form.joiningDate) return 'Joining Date is required';
-    if (!form.department || !form.position || !form.role || !form.salary) return 'All Job details are required';
-    if (!form.hscPercent) return '12th/Diploma percentage is required';
-    if (!form.graduationCourse || !form.graduationPercent) return 'Graduation details are required';
-    if (!form.aadhaarNumber || !form.panNumber) return 'Aadhaar and PAN numbers are required';
-    if (!form.accountHolderName || !form.bankName || !form.accountNumber || !form.ifsc) return 'All Bank details are required';
-    if (!form.emergencyContactName || !form.emergencyContactMobile) return 'Emergency contact name and mobile are required';
-    return null;
+    const newErrors = {};
+
+    if (!form.name?.trim()) newErrors.name = 'Full name is required';
+    if (!form.email?.trim()) newErrors.email = 'Email address is required';
+    if (!form.mobileNumber?.trim()) newErrors.mobileNumber = 'Mobile number is required';
+
+    if (form.password) {
+      if (form.password.length < 6) newErrors.password = 'Password must be at least 6 characters';
+      if (form.password !== form.confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
+    }
+
+    if (!form.gender) newErrors.gender = 'Gender is required';
+    if (!form.dateOfBirth) newErrors.dateOfBirth = 'Date of birth is required';
+    if (!form.maritalStatus) newErrors.maritalStatus = 'Marital status is required';
+
+    if (!form.currentAddress?.trim()) newErrors.currentAddress = 'Current address is required';
+    if (!form.permanentAddress?.trim()) newErrors.permanentAddress = 'Permanent address is required';
+
+    if (!form.joiningDate) newErrors.joiningDate = 'Joining date is required';
+    if (!form.department) newErrors.department = 'Department is required';
+    if (!form.position) newErrors.position = 'Position is required';
+    if (!form.role) newErrors.role = 'Role is required';
+    if (!form.salary) newErrors.salary = 'Monthly salary is required';
+
+    if (!form.aadhaarNumber?.trim()) newErrors.aadhaarNumber = 'Aadhaar number is required';
+    else if (!/^\d{12}$/.test(form.aadhaarNumber)) newErrors.aadhaarNumber = 'Invalid Aadhaar (12 digits)';
+
+    if (!form.panNumber?.trim()) newErrors.panNumber = 'PAN number is required';
+    else if (!/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(form.panNumber.toUpperCase())) newErrors.panNumber = 'Invalid PAN format';
+
+    if (!form.accountHolderName?.trim()) newErrors.accountHolderName = 'Account holder is required';
+    if (!form.bankName?.trim()) newErrors.bankName = 'Bank name is required';
+    if (!form.accountNumber?.trim()) newErrors.accountNumber = 'Account number is required';
+    if (!form.ifsc?.trim()) newErrors.ifsc = 'IFSC is required';
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const error = validate();
-    if (error) {
-      toast.error(error);
+    const isValid = validate();
+    if (!isValid) {
+      toast.error('Please correct the validation errors');
       return;
     }
     
@@ -247,7 +351,11 @@ const EditEmployee = () => {
     try {
       const fd = new FormData();
       Object.entries(form).forEach(([k, v]) => { 
-        if (v !== undefined && v !== null && k !== 'sameAsCurrent' && k !== 'confirmPassword') {
+        // Skip certain fields or empty password fields
+        if (k === 'sameAsCurrent') return;
+        if ((k === 'password' || k === 'confirmPassword') && !v) return;
+
+        if (v !== undefined && v !== null) {
           if (Array.isArray(v)) {
             fd.append(k, JSON.stringify(v));
           } else {
@@ -264,7 +372,11 @@ const EditEmployee = () => {
       toast.success(`✅ Employee ${employeeCode} updated successfully!`);
       navigate('/employees');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to update employee');
+      if (err.response?.status === 409) {
+        toast.error('Duplicate Data: Email or Mobile already exists');
+      } else {
+        toast.error(err.response?.data?.message || 'Failed to update employee');
+      }
     } finally {
       setLoading(false);
     }
@@ -299,70 +411,96 @@ const EditEmployee = () => {
           
           {/* Section 1: Basic Details */}
           <FormSection title="1. Basic Details" defaultOpen={true}>
-            <Field label="Full Name *" fullWidth={true}>
-              <input className="input-field" name="name" value={form.name} onChange={handleChange} placeholder="John Doe" />
+            <Field label="Full Name" required={true} fullWidth={true} error={errors.name}>
+              <input className={`input-field ${errors.name ? 'error' : ''}`} name="name" value={form.name} onChange={handleChange} placeholder="John Doe" maxLength={50} />
             </Field>
-            <Field label="Email Address *">
-              <input className="input-field" type="email" name="email" value={form.email} onChange={handleChange} placeholder="john.doe@company.com" disabled style={{ opacity: 0.7 }} />
+            <Field label="Email Address" required={true} error={errors.email}>
+              <input className={`input-field ${errors.email ? 'error' : ''}`} type="email" name="email" value={form.email} onChange={handleChange} placeholder="john.doe@company.com" disabled style={{ opacity: 0.7 }} />
             </Field>
-            <Field label="Mobile Number *">
-              <input className="input-field" name="mobileNumber" value={form.mobileNumber} onChange={handleChange} placeholder="9876543210" maxLength={15} disabled style={{ opacity: 0.7 }} />
+            <Field label="Mobile Number" required={true} error={errors.mobileNumber}>
+              <input className={`input-field ${errors.mobileNumber ? 'error' : ''}`} name="mobileNumber" value={form.mobileNumber} onChange={handleChange} placeholder="9876543210" maxLength={15} disabled style={{ opacity: 0.7 }} />
             </Field>
             <Field label="Alternate Mobile Number">
               <input className="input-field" name="alternateMobileNumber" value={form.alternateMobileNumber} onChange={handleChange} placeholder="Optional" maxLength={15} />
             </Field>
-            <Field label="New Password">
-              <input className="input-field" type="password" name="password" value={form.password} onChange={handleChange} placeholder="Leave blank to keep current" />
+            <Field label="New Password" error={errors.password}>
+              <div style={{ position: 'relative' }}>
+                <input 
+                  className={`input-field ${errors.password ? 'error' : ''}`} 
+                  type={showPassword ? "text" : "password"} 
+                  name="password" 
+                  value={form.password} 
+                  onChange={handleChange} 
+                  placeholder="Leave blank to keep current" 
+                />
+                <button 
+                  type="button" 
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--color-text-tertiary)', cursor: 'pointer', display: 'flex' }}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </Field>
-            <Field label="Confirm New Password">
-              <input className="input-field" type="password" name="confirmPassword" value={form.confirmPassword} onChange={handleChange} placeholder="Match new password" />
+            <Field label="Confirm New Password" error={errors.confirmPassword}>
+              <input 
+                className={`input-field ${errors.confirmPassword ? 'error' : ''}`} 
+                type={showPassword ? "text" : "password"} 
+                name="confirmPassword" 
+                value={form.confirmPassword} 
+                onChange={handleChange} 
+                placeholder="Match new password" 
+              />
             </Field>
           </FormSection>
 
           {/* Section 2: Personal Details */}
           <FormSection title="2. Personal Details">
-             <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '24px', alignItems: 'flex-start', marginBottom: '10px' }}>
+             <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '32px', alignItems: 'flex-start', marginBottom: '10px' }}>
                 {/* Profile Photo Upload */}
                 <div>
-                  <label className="form-label">Profile Photo</label>
+                  <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem' }}>Profile Photo</label>
                   <label style={{ 
                     cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', 
-                    width: '120px', height: '120px', borderRadius: '16px', border: '2px dashed var(--color-border)', 
-                    background: imagePreview ? 'transparent' : 'var(--color-surface-alt)', overflow: 'hidden', position: 'relative'
+                    width: '130px', height: '130px', borderRadius: '24px', border: `2px dashed ${errors.profileImage ? '#EF4444' : 'var(--color-border)'}`, 
+                    background: imagePreview ? 'transparent' : 'var(--color-surface-alt)', overflow: 'hidden', position: 'relative',
+                    transition: 'all 0.3s', boxShadow: '0 4px 12px rgba(0,0,0,0.02)'
                   }}>
                     {imagePreview ? (
                       <img src={imagePreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     ) : (
                       <>
-                        <User size={32} color="var(--color-text-tertiary)" style={{ marginBottom: '8px' }} />
-                        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>Upload Image</span>
+                        <div style={{ background: 'var(--color-surface)', padding: '10px', borderRadius: '12px', marginBottom: '8px' }}>
+                          <User size={28} color="var(--color-text-tertiary)" />
+                        </div>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)', fontWeight: 600 }}>Select Photo</span>
                       </>
                     )}
                     <input type="file" accept="image/jpeg, image/png, image/jpg" onChange={(e) => handleFileChange('profileImage', e.target.files[0])} style={{ display: 'none' }} />
                   </label>
                 </div>
                 
-                <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '20px' }}>
-                  <Field label="Gender *">
-                    <select className="input-field select-field" name="gender" value={form.gender} onChange={handleChange}>
+                <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '20px' }}>
+                  <Field label="Gender" required={true} error={errors.gender}>
+                    <select className={`input-field select-field ${errors.gender ? 'error' : ''}`} name="gender" value={form.gender} onChange={handleChange}>
                       <option value="">Select Gender</option>
                       {GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
                     </select>
                   </Field>
-                  <Field label="Date of Birth *">
-                    <input className="input-field" type="date" name="dateOfBirth" value={form.dateOfBirth} onChange={handleChange} />
+                  <Field label="Date of Birth" required={true} error={errors.dateOfBirth}>
+                    <input className={`input-field ${errors.dateOfBirth ? 'error' : ''}`} type="date" name="dateOfBirth" value={form.dateOfBirth} onChange={handleChange} max={new Date().toISOString().split('T')[0]} />
                   </Field>
-                  <Field label="Marital Status *">
-                    <select className="input-field select-field" name="maritalStatus" value={form.maritalStatus} onChange={handleChange}>
+                  <Field label="Marital Status" required={true} error={errors.maritalStatus}>
+                    <select className={`input-field select-field ${errors.maritalStatus ? 'error' : ''}`} name="maritalStatus" value={form.maritalStatus} onChange={handleChange}>
                       <option value="">Select Status</option>
                       {MARITAL_STATUS.map(m => <option key={m} value={m}>{m}</option>)}
                     </select>
                   </Field>
                   <Field label="Father's Name">
-                    <input className="input-field" name="fatherName" value={form.fatherName} onChange={handleChange} />
+                    <input className="input-field" name="fatherName" value={form.fatherName} onChange={handleChange} placeholder="Enter name" />
                   </Field>
                   <Field label="Mother's Name">
-                    <input className="input-field" name="motherName" value={form.motherName} onChange={handleChange} />
+                    <input className="input-field" name="motherName" value={form.motherName} onChange={handleChange} placeholder="Enter name" />
                   </Field>
                 </div>
             </div>
@@ -403,14 +541,21 @@ const EditEmployee = () => {
             
             {form.experienceType === 'Experienced' && (
               <>
-                <Field label="Total Experience (Years) *">
-                  <input className="input-field" type="number" step="0.1" name="totalExperienceYears" value={form.totalExperienceYears} onChange={handleChange} placeholder="e.g. 2.5" />
+                <Field label="Total Experience (Years)" required={true} error={errors.totalExperienceYears}>
+                  <input className={`input-field ${errors.totalExperienceYears ? 'error' : ''}`} type="number" step="0.1" name="totalExperienceYears" value={form.totalExperienceYears} onChange={handleChange} placeholder="e.g. 2.5" />
                 </Field>
                 <Field label="Last Company Name">
-                  <input className="input-field" name="lastCompanyName" value={form.lastCompanyName} onChange={handleChange} />
+                  <input className="input-field" name="lastCompanyName" value={form.lastCompanyName} onChange={handleChange} placeholder="Company name" />
                 </Field>
                 <div style={{ gridColumn: '1 / -1', marginTop: '8px' }}>
-                  <FileUploadField label="Experience Certificates" onChange={(f) => handleFileChange('experienceCertificate', f)} file={files.experienceCertificate} existingUrl={existingUrls.experienceCertificate} required={false} />
+                  <FileUploadField 
+                    label="Experience Certificate" 
+                    onChange={(f) => handleFileChange('experienceCertificate', f)} 
+                    file={files.experienceCertificate} 
+                    existingUrl={existingUrls.experienceCertificate} 
+                    onRemove={() => { setFiles(f => ({ ...f, experienceCertificate: null })); setExistingUrls(u => ({ ...u, experienceCertificate: null })); }}
+                    error={errors.experienceCertificate}
+                  />
                 </div>
               </>
             )}
@@ -433,23 +578,47 @@ const EditEmployee = () => {
 
           {/* Section 5: Job Details */}
           <FormSection title="5. Job Details" defaultOpen={false}>
-            <Field label="Joining Date *">
-              <input className="input-field" type="date" name="joiningDate" value={form.joiningDate} onChange={handleChange} />
+            <Field label="Joining Date" required={true} error={errors.joiningDate}>
+              <input className={`input-field ${errors.joiningDate ? 'error' : ''}`} type="date" name="joiningDate" value={form.joiningDate} onChange={handleChange} />
             </Field>
-            <Field label="Department *">
-              <select className="input-field select-field" name="department" value={form.department} onChange={handleChange} style={{ padding: '0 8px 0 16px' }} >
-                <option value="">Select Department</option>
-                {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-              </select>
+            <Field label="Department" required={true} error={errors.department}>
+              <div style={{ position: 'relative' }}>
+                <input 
+                  className={`input-field ${errors.department ? 'error' : ''}`} 
+                  name="department" 
+                  list="dept-options" 
+                  value={form.department} 
+                  onChange={handleChange} 
+                  placeholder="Select or type new"
+                />
+                <datalist id="dept-options">
+                  {[...DEPARTMENTS, ...customDepts].map(d => <option key={d} value={d}>{d}</option>)}
+                </datalist>
+                <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--color-text-tertiary)' }}>
+                  <ChevronDown size={16} />
+                </div>
+              </div>
             </Field>
-            <Field label="Position *">
-              <select className="input-field select-field" name="position" value={form.position} onChange={handleChange} style={{ padding: '0 8px 0 16px' }}>
-                 <option value="">Select Position</option>
-                 {POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
+            <Field label="Position" required={true} error={errors.position}>
+              <div style={{ position: 'relative' }}>
+                <input 
+                  className={`input-field ${errors.position ? 'error' : ''}`} 
+                  name="position" 
+                  list="pos-options" 
+                  value={form.position} 
+                  onChange={handleChange} 
+                  placeholder="Select or type new"
+                />
+                <datalist id="pos-options">
+                  {[...POSITIONS, ...customPositions].map(p => <option key={p} value={p}>{p}</option>)}
+                </datalist>
+                <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--color-text-tertiary)' }}>
+                  <ChevronDown size={16} />
+                </div>
+              </div>
             </Field>
-            <Field label="Role *">
-              <select className="input-field select-field" name="role" value={form.role} onChange={handleChange}>
+            <Field label="Role" required={true} error={errors.role}>
+              <select className={`input-field select-field ${errors.role ? 'error' : ''}`} name="role" value={form.role} onChange={handleChange}>
                 {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
               </select>
             </Field>
@@ -594,7 +763,14 @@ const EditEmployee = () => {
               <input className="input-field" name="branch" value={form.branch} onChange={handleChange} placeholder="Branch Location" />
             </Field>
             <div style={{ gridColumn: '1 / -1', marginTop: '12px' }}>
-              <FileUploadField label="Bank Passbook / Cancelled Cheque" onChange={(f) => handleFileChange('passbookFile', f)} file={files.passbookFile} existingUrl={existingUrls.passbookFile} required={false} />
+              <FileUploadField 
+                label="Bank Passbook / Cancelled Cheque" 
+                onChange={(f) => handleFileChange('passbookFile', f)} 
+                file={files.passbookFile} 
+                existingUrl={existingUrls.passbookFile} 
+                onRemove={() => handleFileChange('passbookFile', null)}
+                error={errors.passbookFile}
+              />
             </div>
           </FormSection>
 
@@ -628,6 +804,8 @@ const EditEmployee = () => {
           .spin { animation: spin 1s linear infinite; } 
           @keyframes spin { 100% { transform: rotate(360deg); } }
           @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+          .input-field.error { border-color: #EF4444; background: rgba(239,68,68,0.01); }
+          .input-field.error:focus { box-shadow: 0 0 0 4px rgba(239,68,68,0.1); }
         `}</style>
       </div>
     </AppShell>

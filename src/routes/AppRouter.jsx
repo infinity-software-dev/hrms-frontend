@@ -31,6 +31,11 @@ import EmployeeAttendance from '../pages/attendance/EmployeeAttendance';
 import AttendanceHistory from '../pages/attendance/AttendanceHistory';
 import SpecialLogins from '../pages/specialLogins/SpecialLogins';
 
+// Resignations
+import ApplyResignation from '../pages/resignations/ApplyResignation';
+import MyResignations from '../pages/resignations/MyResignations';
+import ResignationApprovals from '../pages/resignations/ResignationApprovals';
+
 const CAN_CREATE = ['SuperUser', 'HR', 'Director', 'VP', 'GM'];
 const ALL_ROLES = ['SuperUser', 'HR', 'Manager', 'Director', 'VP', 'GM', 'Employee', 'Intern'];
 const MANAGEMENT_PLUS = ['SuperUser', 'HR', 'Director', 'VP', 'GM', 'Manager'];
@@ -158,6 +163,17 @@ const AppRouter = () => (
         } />
         <Route path="/employees/:id/edit" element={
           <ProtectedRoute allowedRoles={CAN_CREATE}><EditEmployee /></ProtectedRoute>
+        } />
+
+        {/* Resignations */}
+        <Route path="/resignations/apply" element={
+          <ProtectedRoute allowedRoles={ALL_ROLES}><ApplyResignation /></ProtectedRoute>
+        } />
+        <Route path="/resignations/my" element={
+          <ProtectedRoute allowedRoles={ALL_ROLES}><MyResignations /></ProtectedRoute>
+        } />
+        <Route path="/resignations/approvals" element={
+          <ProtectedRoute allowedRoles={MANAGEMENT_PLUS}><ResignationApprovals /></ProtectedRoute>
         } />
 
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

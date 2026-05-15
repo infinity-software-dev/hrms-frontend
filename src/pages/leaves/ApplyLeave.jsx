@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
@@ -7,6 +7,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import AppShell from '../../components/layout/AppShell';
 import { applyLeave } from '../../api/leave.api';
+import { getAllHolidays } from '../../api/holiday.api';
 import { useAuth } from '../../context/AuthContext';
 
 const LEAVE_TYPES = [
@@ -39,9 +40,21 @@ const ApplyLeave = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
+  const [holidays, setHolidays] = useState([]);
+
   useEffect(() => {
     refreshProfile();
+    fetchHolidays();
   }, [refreshProfile]);
+
+  const fetchHolidays = async () => {
+    try {
+      const res = await getAllHolidays();
+      setHolidays(res.data.data || []);
+    } catch (err) {
+      console.error('Failed to fetch holidays:', err);
+    }
+  };
 
   const [form, setForm] = useState({
     leaveType: '',
@@ -54,12 +67,31 @@ const ApplyLeave = () => {
 
   useOutsideClick(dropdownRef, () => setDropdownOpen(false));
 
-  const totalDays = form.halfDay
-    ? 0.5
-    : Math.max(
-        0,
-        Math.round((new Date(form.endDate) - new Date(form.startDate)) / (1000 * 60 * 60 * 24)) + 1
-      );
+  const totalDays = useMemo(() => {
+    if (form.halfDay) return 0.5;
+    
+    let count = 0;
+    let start = new Date(form.startDate);
+    start.setHours(0,0,0,0);
+    let end = new Date(form.endDate);
+    end.setHours(0,0,0,0);
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) return 0;
+
+    const holidayDates = new Set(holidays.map(h => new Date(h.date).toDateString()));
+
+    let current = new Date(start);
+    while (current <= end) {
+      const isSunday = current.getDay() === 0;
+      const isHoliday = holidayDates.has(current.toDateString());
+
+      if (!isSunday && !isHoliday) {
+        count++;
+      }
+      current.setDate(current.getDate() + 1);
+    }
+    return count;
+  }, [form.startDate, form.endDate, form.halfDay, holidays]);
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
