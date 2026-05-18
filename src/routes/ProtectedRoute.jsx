@@ -17,7 +17,8 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/dashboard" replace />;
+    const fallbackPath = user.role === 'HR' ? '/hr/dashboard' : '/dashboard';
+    return <Navigate to={fallbackPath} replace />;
   }
 
   return children;

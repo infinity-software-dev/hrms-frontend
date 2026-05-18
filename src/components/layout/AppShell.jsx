@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import {
   LayoutDashboard, Clock, Users, LogOut, ChevronRight,
   User, Bell, Search, CalendarDays,
-  ChevronDown, Calendar, DollarSign, Menu, X
+  ChevronDown, Calendar, DollarSign, Menu, X, MessageSquare, ShieldAlert
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import theme from '../../theme';
@@ -102,6 +102,7 @@ const navGroups = [
 
 
 
+
   // {
   //   label: 'Resignation',
   //   items: [
@@ -124,6 +125,20 @@ const navGroups = [
 
       { icon: DollarSign, label: 'Payroll', roles: ['SuperUser', 'HR', 'Manager', 'Director', 'VP', 'GM', 'Employee', 'Intern'], children: [] },
       { icon: Calendar, label: 'Holiday Calendar', path: '/holidays', roles: ['SuperUser', 'HR', 'Manager', 'Director', 'VP', 'GM', 'Employee', 'Intern'] },
+
+      {
+        icon: MessageSquare,
+        label: 'Complaint Box',
+        roles: ['SuperUser', 'HR', 'Manager', 'Director', 'VP', 'GM', 'Employee', 'Intern'],
+        children: [
+          { label: 'Submit Complaint', path: '/complaints/apply', roles: ['Employee', 'Intern', 'Manager', 'GM', 'VP', 'SuperUser'] },
+          { label: 'My Complaints', path: '/complaints/my', roles: ['Employee', 'Intern', 'Manager', 'GM', 'VP', 'SuperUser'] },
+          { label: 'Director Dashboard', path: '/complaints/director', roles: ['Director', 'SuperUser'] },
+        ]
+      },
+
+      // { icon: Calendar, label: 'Complaint Box', path: '/complaints/apply', roles: ['SuperUser', 'HR', 'Manager', 'VP', 'GM', 'Employee', 'Intern'] },
+
       { icon: Calendar, label: 'Manage Announcements', path: '/manage-announcements', roles: ['SuperUser', 'HR', 'Director', 'VP', 'GM',] },
       { icon: Calendar, label: 'Gurukul', path: '/gurukul', roles: ['SuperUser', 'HR', 'Manager', 'Director', 'VP', 'GM', 'Employee', 'Intern'] },
       { icon: Calendar, label: 'Special Login', path: '/special-logins', roles: ['SuperUser'] },

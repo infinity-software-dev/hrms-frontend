@@ -16,8 +16,12 @@ const GENDERS = ['Male', 'Female', 'Other'];
 const MARITAL_STATUS = ['Single', 'Married', 'Divorced', 'Widowed'];
 const EXPERIENCE_TYPES = ['Fresher', 'Experienced'];
 
-const FormSection = ({ title, defaultOpen = true, children }) => {
+const FormSection = ({ title, defaultOpen = true, children, hasError }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  useEffect(() => {
+    if (hasError) setIsOpen(true);
+  }, [hasError]);
 
   return (
     <div style={{ marginBottom: '24px', background: 'var(--color-surface)', borderRadius: '16px', border: '1px solid var(--color-border)', overflow: 'hidden', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
@@ -58,7 +62,7 @@ const Field = ({ label, required, children, fullWidth, error, info }) => (
   </div>
 );
 
-const FileUploadField = ({ label, onChange, file, accept = ".pdf,.jpg,.jpeg,.png", required, error, onRemove }) => {
+const FileUploadField = ({ label, onChange, file, accept = ".pdf,.jpg,.jpeg,.png", required, error, onRemove, name }) => {
   const [preview, setPreview] = useState(null);
 
   useEffect(() => {
@@ -72,7 +76,7 @@ const FileUploadField = ({ label, onChange, file, accept = ".pdf,.jpg,.jpeg,.png
   }, [file]);
 
   return (
-    <div style={{ 
+    <div id={name} style={{ 
       border: `1.5px dashed ${error ? '#EF4444' : 'var(--color-border)'}`, 
       borderRadius: '14px', 
       padding: '16px', 
@@ -276,7 +280,7 @@ const CreateEmployee = () => {
     if (!files.profileImage) newErrors.profileImage = 'Profile photo is mandatory';
 
     if (!form.currentAddress?.trim()) newErrors.currentAddress = 'Current address is required';
-    if (!form.permanentAddress?.trim()) newErrors.permanentAddress = 'Permanent address is required';
+    if (!form.sameAsCurrent && !form.permanentAddress?.trim()) newErrors.permanentAddress = 'Permanent address is required';
 
     // Job Details
     if (!form.joiningDate) newErrors.joiningDate = 'Joining date is required';
@@ -316,20 +320,22 @@ const CreateEmployee = () => {
     else if (!/^\d{10,12}$/.test(form.emergencyContactMobile)) newErrors.emergencyContactMobile = 'Invalid mobile number';
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return newErrors;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const isValid = validate();
-    if (!isValid) {
-      toast.error('Please correct the errors in the form before submitting.');
+    const validationErrors = validate();
+    if (Object.keys(validationErrors).length > 0) {
+      toast.error('Please correct the highlighted validation errors before submitting.');
       // Scroll to first error
-      const firstError = Object.keys(errors)[0];
-      if (firstError) {
-        const el = document.getElementsByName(firstError)[0];
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
+      setTimeout(() => {
+        const firstError = Object.keys(validationErrors)[0];
+        if (firstError) {
+          const el = document.getElementsByName(firstError)[0] || document.getElementById(firstError);
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
       return;
     }
     
@@ -394,7 +400,7 @@ const CreateEmployee = () => {
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0px' }}>
           
           {/* Section 1: Basic Details */}
-          <FormSection title="1. Basic Details" defaultOpen={true}>
+          <FormSection title="1. Basic Details" defaultOpen={true} hasError={!!(errors.name || errors.email || errors.mobileNumber || errors.password || errors.confirmPassword)}>
             <Field label="Full Name" required={true} fullWidth={true} error={errors.name}>
               <input className={`input-field ${errors.name ? 'error' : ''}`} name="name" value={form.name} onChange={handleChange} placeholder="John Doe" maxLength={50} />
             </Field>
@@ -439,12 +445,12 @@ const CreateEmployee = () => {
           </FormSection>
 
           {/* Section 2: Personal Details */}
-          <FormSection title="2. Personal Details">
+          <FormSection title="2. Personal Details" hasError={!!(errors.profileImage || errors.gender || errors.dateOfBirth || errors.maritalStatus || errors.currentAddress || errors.permanentAddress)}>
              <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '32px', alignItems: 'flex-start', marginBottom: '10px' }}>
                 {/* Profile Photo Upload */}
                 <div>
                   <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem' }}>Profile Photo {errors.profileImage && <span style={{ color: '#EF4444' }}>*</span>}</label>
-                  <label style={{ 
+                  <label id="profileImage" style={{ 
                     cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', 
                     width: '130px', height: '130px', borderRadius: '24px', border: `2px dashed ${errors.profileImage ? '#EF4444' : 'var(--color-border)'}`, 
                     background: imagePreview ? 'transparent' : 'var(--color-surface-alt)', overflow: 'hidden', position: 'relative',
@@ -460,7 +466,7 @@ const CreateEmployee = () => {
                         <span style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)', fontWeight: 600 }}>Select Photo</span>
                       </>
                     )}
-                    <input type="file" accept="image/jpeg, image/png, image/jpg" onChange={(e) => handleFileChange('profileImage', e.target.files[0])} style={{ display: 'none' }} />
+                    <input id="profileImage-input" name="profileImage" type="file" accept="image/jpeg, image/png, image/jpg" onChange={(e) => handleFileChange('profileImage', e.target.files[0])} style={{ display: 'none' }} />
                   </label>
                   {errors.profileImage && <div style={{ color: '#EF4444', fontSize: '0.7rem', marginTop: '6px', textAlign: 'center', fontWeight: 600 }}>{errors.profileImage}</div>}
                 </div>
@@ -517,7 +523,7 @@ const CreateEmployee = () => {
           </FormSection>
 
           {/* Section 3: Experience Details */}
-          <FormSection title="3. Experience Details" defaultOpen={false}>
+          <FormSection title="3. Experience Details" defaultOpen={false} hasError={!!(errors.experienceType || errors.totalExperienceYears || errors.experienceCertificate)}>
             <Field label="Experience Type *">
               <select className="input-field select-field" name="experienceType" value={form.experienceType} onChange={handleChange}>
                 {EXPERIENCE_TYPES.map(e => <option key={e} value={e}>{e}</option>)}
@@ -534,6 +540,7 @@ const CreateEmployee = () => {
                 </Field>
                 <div style={{ gridColumn: '1 / -1', marginTop: '8px' }}>
                   <FileUploadField 
+                    name="experienceCertificate"
                     label="Experience Certificate" 
                     onChange={(f) => handleFileChange('experienceCertificate', f)} 
                     file={files.experienceCertificate} 
@@ -546,7 +553,7 @@ const CreateEmployee = () => {
           </FormSection>
 
           {/* Section 4: Health Information */}
-          <FormSection title="4. Health Information" defaultOpen={false}>
+          <FormSection title="4. Health Information" defaultOpen={false} hasError={!!(errors.hasDisease || errors.diseaseName)}>
             <Field label="Has any pre-existing disease? *">
               <select className="input-field select-field" name="hasDisease" value={form.hasDisease} onChange={handleChange}>
                 <option value="No">No</option>
@@ -561,7 +568,7 @@ const CreateEmployee = () => {
           </FormSection>
 
           {/* Section 5: Job Details */}
-          <FormSection title="5. Job Details" defaultOpen={false}>
+          <FormSection title="5. Job Details" defaultOpen={false} hasError={!!(errors.joiningDate || errors.department || errors.position || errors.role || errors.salary)}>
             <Field label="Joining Date" required={true} error={errors.joiningDate}>
               <input className={`input-field ${errors.joiningDate ? 'error' : ''}`} type="date" name="joiningDate" value={form.joiningDate} onChange={handleChange} />
             </Field>
@@ -651,7 +658,7 @@ const CreateEmployee = () => {
           </FormSection>
 
           {/* Section 6: Education Details */}
-          <FormSection title="6. Education Details" defaultOpen={false}>
+          <FormSection title="6. Education Details" defaultOpen={false} hasError={!!(errors.hscPercent || errors.twelfthMarksheet || errors.graduationCourse || errors.graduationPercent || errors.graduationMarksheet || errors.postGraduationCourse || errors.postGraduationPercent || errors.postGraduationMarksheet)}>
             {/* 12th details */}
             <div style={{ gridColumn: '1 / -1', paddingBottom: '16px', borderBottom: '1px solid var(--color-border)', marginBottom: '8px' }}>
               <h4 style={{ margin: '0 0 16px 0', fontSize: '0.9rem', fontWeight: 700, color: 'var(--color-text)' }}>12th / Diploma</h4>
@@ -660,6 +667,7 @@ const CreateEmployee = () => {
                   <input className={`input-field ${errors.hscPercent ? 'error' : ''}`} type="number" step="0.01" name="hscPercent" value={form.hscPercent} onChange={handleChange} placeholder="e.g. 85.50" />
                 </Field>
                 <FileUploadField 
+                  name="twelfthMarksheet"
                   label="12th/Diploma Marksheet" 
                   onChange={(f) => handleFileChange('twelfthMarksheet', f)} 
                   file={files.twelfthMarksheet} 
@@ -684,6 +692,7 @@ const CreateEmployee = () => {
                 </Field>
                 <div style={{ gridColumn: '1 / -1' }}>
                   <FileUploadField 
+                    name="graduationMarksheet"
                     label="Graduation Marksheet" 
                     onChange={(f) => handleFileChange('graduationMarksheet', f)} 
                     file={files.graduationMarksheet} 
@@ -708,14 +717,14 @@ const CreateEmployee = () => {
                   <input className="input-field" type="number" step="0.01" name="postGraduationPercent" value={form.postGraduationPercent} onChange={handleChange} placeholder="e.g. 80.00" />
                 </Field>
                 <div style={{ gridColumn: '1 / -1' }}>
-                  <FileUploadField label="PG Marksheet" onChange={(f) => handleFileChange('postGraduationMarksheet', f)} file={files.postGraduationMarksheet} required={false} />
+                  <FileUploadField name="postGraduationMarksheet" label="PG Marksheet" onChange={(f) => handleFileChange('postGraduationMarksheet', f)} file={files.postGraduationMarksheet} required={false} />
                 </div>
               </div>
             </div>
           </FormSection>
 
           {/* Section 7: ID Proofs */}
-          <FormSection title="7. Identity Proofs" defaultOpen={false}>
+          <FormSection title="7. Identity Proofs" defaultOpen={false} hasError={!!(errors.aadhaarNumber || errors.aadhaarFile || errors.panNumber || errors.panFile)}>
             <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }}>
               {/* Aadhaar */}
               <div style={{ background: 'var(--color-surface-alt)', padding: '24px', borderRadius: '18px', border: '1px solid var(--color-border)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
@@ -725,6 +734,7 @@ const CreateEmployee = () => {
                     <input className={`input-field ${errors.aadhaarNumber ? 'error' : ''}`} name="aadhaarNumber" value={form.aadhaarNumber} onChange={handleChange} placeholder="12-digit number" maxLength={12} />
                   </Field>
                   <FileUploadField 
+                    name="aadhaarFile"
                     label="Aadhaar Front/Back" 
                     onChange={(f) => handleFileChange('aadhaarFile', f)} 
                     file={files.aadhaarFile} 
@@ -742,6 +752,7 @@ const CreateEmployee = () => {
                     <input className={`input-field ${errors.panNumber ? 'error' : ''}`} name="panNumber" value={form.panNumber} onChange={handleChange} placeholder="ABCDE1234F" style={{ textTransform: 'uppercase' }} maxLength={10} />
                   </Field>
                   <FileUploadField 
+                    name="panFile"
                     label="PAN Card Copy" 
                     onChange={(f) => handleFileChange('panFile', f)} 
                     file={files.panFile} 
@@ -754,7 +765,7 @@ const CreateEmployee = () => {
           </FormSection>
 
           {/* Section 8: Bank Details */}
-          <FormSection title="8. Bank Details" defaultOpen={false}>
+          <FormSection title="8. Bank Details" defaultOpen={false} hasError={!!(errors.accountHolderName || errors.bankName || errors.accountNumber || errors.ifsc || errors.branch || errors.passbookFile)}>
             <Field label="Account Holder" required={true} error={errors.accountHolderName}>
               <input className={`input-field ${errors.accountHolderName ? 'error' : ''}`} name="accountHolderName" value={form.accountHolderName} onChange={handleChange} placeholder="As per bank records" />
             </Field>
@@ -772,6 +783,7 @@ const CreateEmployee = () => {
             </Field>
             <div style={{ gridColumn: '1 / -1', marginTop: '12px' }}>
               <FileUploadField 
+                name="passbookFile"
                 label="Bank Passbook / Cancelled Cheque" 
                 onChange={(f) => handleFileChange('passbookFile', f)} 
                 file={files.passbookFile} 
@@ -782,7 +794,7 @@ const CreateEmployee = () => {
           </FormSection>
 
           {/* Section 9: Emergency Contact */}
-          <FormSection title="9. Emergency Contact" defaultOpen={false}>
+          <FormSection title="9. Emergency Contact" defaultOpen={false} hasError={!!(errors.emergencyContactName || errors.emergencyContactRelationship || errors.emergencyContactMobile || errors.emergencyContactAddress)}>
             <Field label="Contact Person" required={true} error={errors.emergencyContactName}>
               <input className={`input-field ${errors.emergencyContactName ? 'error' : ''}`} name="emergencyContactName" value={form.emergencyContactName} onChange={handleChange} placeholder="Full Name" />
             </Field>

@@ -17,8 +17,6 @@ const Login = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const from = location.state?.from?.pathname || '/dashboard';
-
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -29,8 +27,10 @@ const Login = () => {
 
     setLoading(true);
     try {
-      await login(employeeCode.trim().toUpperCase(), password);
+      const loggedInUser = await login(employeeCode.trim().toUpperCase(), password);
       toast.success('Welcome back! 👋');
+      const defaultPath = loggedInUser.role === 'HR' ? '/hr/dashboard' : '/dashboard';
+      const from = location.state?.from?.pathname || defaultPath;
       navigate(from, { replace: true });
     } catch (err) {
       const msg =

@@ -16,7 +16,7 @@ export default defineConfig({
     allowedHosts: ['https://hrmsv2.infinityarthvishva.com/'],
     proxy: {
       '/api': {
-        target: 'https://hrms-v-2-5-backend.vercel.app/',
+        target: 'http://192.168.1.53:5000',
         changeOrigin: true,
       },
     },

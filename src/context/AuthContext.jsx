@@ -32,10 +32,10 @@ export const AuthProvider = ({ children }) => {
     try {
       await api.post('/auth/logout');
     } catch (_) {}
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('hrms_user');
+    localStorage.clear();
+    sessionStorage.clear();
     setUser(null);
+    window.location.href = '/login';
   }, []);
 
   const refreshProfile = useCallback(async () => {

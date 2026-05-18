@@ -9,6 +9,9 @@ import AppShell from '../../components/layout/AppShell';
 import { applyResignation } from '../../api/resignation.api';
 import { useAuth } from '../../context/AuthContext';
 
+
+
+
 const REASON_TYPES = [
   { value: 'Better Opportunity', label: 'Better Opportunity', color: '#10B981' },
   { value: 'Relocation', label: 'Relocation', color: '#3B82F6' },

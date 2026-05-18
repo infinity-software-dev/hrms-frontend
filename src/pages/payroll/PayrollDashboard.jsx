@@ -8,7 +8,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
-import * as XLSX from 'xlsx';
+import XLSX from 'xlsx-js-style';
 
 const PayrollDashboard = () => {
   const { user } = useAuth();
@@ -133,6 +133,216 @@ const PayrollDashboard = () => {
     }
   };
 
+  const handleExportExcel = () => {
+    const tId = toast.loading('Generating Excel...');
+    try {
+      const aoa = [
+        ["PAYROLL SUMMARY REPORT"],
+        [`Period: ${formatDate(dateRange.startDate)} to ${formatDate(dateRange.endDate)}`],
+        [],
+        [
+          "Sr. No.",
+          "Employee No",
+          "Employee Name",
+          "PAN No",
+          "Designation",
+          "Bank Name",
+          "Bank Account Number",
+          "IFSC Code",
+          "MICR (keep it blank)",
+          "Bank Branch",
+          "Joining Date",
+          "Working Days",
+          "Leaves Taken",
+          "Days Present",
+          "Base Salary (Total Salary)",
+          "Employee CTC (same as Total Salary)",
+          "Gross Salary",
+          "Profession Tax Deduction",
+          "Net Salary",
+          "Total Pay"
+        ]
+      ];
+
+      let totalPaySum = 0;
+      filteredEmployees.forEach((emp, index) => {
+        const p = payrolls.find(pay => pay.employeeId === emp._id || pay.employeeId?._id === emp._id);
+        const isProcessed = !!p;
+
+        const joiningDateFormatted = emp.joiningDate ? new Date(emp.joiningDate).toLocaleDateString('en-IN') : '—';
+        const leavesTaken = isProcessed ? ((p.paidLeaves || 0) + (p.unpaidLeaves || 0)) : 0;
+
+        const baseSalary = isProcessed ? p.baseSalary : (emp.salary || 0);
+        const employeeCTC = baseSalary;
+        const grossSalary = isProcessed ? p.grossEarnings : 0;
+        const ptDeduction = isProcessed ? p.professionalTax : 0;
+        const netSalary = isProcessed ? p.netSalary : 0;
+        const totalPay = netSalary;
+
+        totalPaySum += totalPay;
+
+        aoa.push([
+          index + 1,
+          emp.employeeCode || '—',
+          emp.name || '—',
+          emp.panNumber || '—',
+          emp.position || '—',
+          emp.bankName || '—',
+          emp.accountNumber || '—',
+          emp.ifsc || '—',
+          '', // MICR (keep it blank)
+          emp.branch || '—',
+          joiningDateFormatted,
+          isProcessed ? p.totalDaysInMonth : 0,
+          leavesTaken,
+          isProcessed ? p.presentDays : 0,
+          baseSalary,
+          employeeCTC,
+          grossSalary,
+          ptDeduction,
+          netSalary,
+          totalPay
+        ]);
+      });
+
+      // Total row at the bottom
+      const totalRow = Array(20).fill('');
+      totalRow[0] = 'Total';
+      totalRow[19] = totalPaySum;
+      aoa.push(totalRow);
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+      // Set column widths
+      ws['!cols'] = [
+        { wch: 8 },  // Sr. No.
+        { wch: 15 }, // Employee No
+        { wch: 25 }, // Employee Name
+        { wch: 15 }, // PAN No
+        { wch: 20 }, // Designation
+        { wch: 20 }, // Bank Name
+        { wch: 22 }, // Bank Account Number
+        { wch: 15 }, // IFSC Code
+        { wch: 15 }, // MICR
+        { wch: 15 }, // Bank Branch
+        { wch: 15 }, // Joining Date
+        { wch: 15 }, // Working Days
+        { wch: 12 }, // Leaves Taken
+        { wch: 12 }, // Days Present
+        { wch: 25 }, // Base Salary (Total Salary)
+        { wch: 30 }, // Employee CTC (same as Total Salary)
+        { wch: 15 }, // Gross Salary
+        { wch: 22 }, // Profession Tax Deduction
+        { wch: 15 }, // Net Salary
+        { wch: 15 }  // Total Pay
+      ];
+
+      // Set row heights for vertical breathing room
+      ws['!rows'] = [
+        { hpt: 35 }, // Title Row
+        { hpt: 25 }, // Subtitle Row (Period)
+        { hpt: 15 }, // Spacer Row
+        { hpt: 30 }, // Headers Row
+      ];
+
+      // Define reusable corporate color palettes
+      const titleStyle = {
+        font: { name: "Arial", sz: 14, bold: true, color: { rgb: "FFFFFF" } },
+        fill: { fgColor: { rgb: "3B82F6" } }, // Elegant Blue
+        alignment: { horizontal: "center", vertical: "center" }
+      };
+
+      const subtitleStyle = {
+        font: { name: "Arial", sz: 10, bold: true, color: { rgb: "1E293B" } },
+        fill: { fgColor: { rgb: "EFF6FF" } }, // Very Light Blue/Gray tint
+        alignment: { horizontal: "center", vertical: "center" }
+      };
+
+      const headerStyle = {
+        font: { name: "Arial", sz: 10, bold: true, color: { rgb: "FFFFFF" } },
+        fill: { fgColor: { rgb: "1E293B" } }, // Deep Dark Slate/Navy
+        alignment: { horizontal: "center", vertical: "center", wrapText: true },
+        border: {
+          top: { style: "thin", color: { rgb: "475569" } },
+          bottom: { style: "medium", color: { rgb: "000000" } },
+          left: { style: "thin", color: { rgb: "475569" } },
+          right: { style: "thin", color: { rgb: "475569" } }
+        }
+      };
+
+      const totalStyle = {
+        font: { name: "Arial", sz: 10, bold: true, color: { rgb: "1E293B" } },
+        fill: { fgColor: { rgb: "F1F5F9" } }, // Structured Gray Slate
+        alignment: { vertical: "center" },
+        border: {
+          top: { style: "double", color: { rgb: "1E293B" } },
+          bottom: { style: "thin", color: { rgb: "1E293B" } }
+        }
+      };
+
+      const dataStyle = {
+        font: { name: "Arial", sz: 10, color: { rgb: "334155" } },
+        alignment: { vertical: "center" },
+        border: {
+          bottom: { style: "thin", color: { rgb: "F1F5F9" } },
+          left: { style: "thin", color: { rgb: "F8FAFC" } },
+          right: { style: "thin", color: { rgb: "F8FAFC" } }
+        }
+      };
+
+      // Merge cells for Title and Subtitle
+      ws['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 19 } },
+        { s: { r: 1, c: 0 }, e: { r: 1, c: 19 } }
+      ];
+
+      // Walk through cells and apply styles dynamically
+      const range = XLSX.utils.decode_range(ws['!ref']);
+      for (let R = range.s.r; R <= range.e.r; ++R) {
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+          const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
+          if (!ws[cellRef]) continue;
+
+          // Make sure style property is initialized
+          ws[cellRef].s = {};
+
+          if (R === 0) {
+            ws[cellRef].s = titleStyle;
+          } else if (R === 1) {
+            ws[cellRef].s = subtitleStyle;
+          } else if (R === 3) {
+            ws[cellRef].s = headerStyle;
+          } else if (R === range.e.r) {
+            ws[cellRef].s = totalStyle;
+            if (C === 19) {
+              ws[cellRef].s.alignment = { horizontal: "right", vertical: "center" };
+            }
+          } else if (R > 3) {
+            // Apply standard data style
+            ws[cellRef].s = { ...dataStyle };
+
+            // Set default alignment
+            if ([0, 11, 12, 13, 14, 15, 16, 17, 18, 19].includes(C)) {
+              ws[cellRef].s.alignment = { horizontal: "right", vertical: "center" };
+            } else if ([1, 3, 7, 8, 10].includes(C)) {
+              ws[cellRef].s.alignment = { horizontal: "center", vertical: "center" };
+            } else {
+              ws[cellRef].s.alignment = { horizontal: "left", vertical: "center" };
+            }
+          }
+        }
+      }
+
+      XLSX.utils.book_append_sheet(wb, ws, 'Payroll Summary');
+
+      XLSX.writeFile(wb, `Payroll_Summary_${dateRange.startDate}_to_${dateRange.endDate}.xlsx`);
+      toast.success('Export successful', { id: tId });
+    } catch (err) {
+      toast.error('Failed to export Excel', { id: tId });
+    }
+  };
+
   const filteredEmployees = employees.filter(emp => 
     emp.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     emp.employeeCode.toLowerCase().includes(searchTerm.toLowerCase())
@@ -156,6 +366,9 @@ const PayrollDashboard = () => {
             <p style={{ color: 'var(--color-text-secondary)', fontWeight: 600, fontSize: '1.1rem' }}>Manage accurate salary processing for {employees.length} active employees</p>
           </div>
           <div style={{ display: 'flex', gap: '12px' }}>
+            <motion.button whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} onClick={handleExportExcel} className="btn-secondary" style={{ padding: '14px 28px', borderRadius: '18px', fontWeight: 700, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Download size={20} /> Export Excel
+            </motion.button>
             <motion.button whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} onClick={handleProcessAll} className="btn-primary" style={{ padding: '14px 28px', borderRadius: '18px', background: 'linear-gradient(135deg, #6366f1, #a855f7)', boxShadow: '0 10px 20px -5px rgba(99, 102, 241, 0.4)', border: 'none', color: '#fff', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '10px' }} disabled={actionLoading}>
               {actionLoading ? <Loader2 className="animate-spin" size={20} /> : <CheckCircle2 size={20} />} 
               Process All Active

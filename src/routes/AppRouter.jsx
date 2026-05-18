@@ -35,10 +35,14 @@ import SpecialLogins from '../pages/specialLogins/SpecialLogins';
 import ApplyResignation from '../pages/resignations/ApplyResignation';
 import MyResignations from '../pages/resignations/MyResignations';
 import ResignationApprovals from '../pages/resignations/ResignationApprovals';
+import SubmitComplaint from '../pages/complaints/SubmitComplaint';
+import MyComplaints from '../pages/complaints/MyComplaints';
+import DirectorComplaints from '../pages/complaints/DirectorComplaints';
 
 const CAN_CREATE = ['SuperUser', 'HR', 'Director', 'VP', 'GM'];
 const ALL_ROLES = ['SuperUser', 'HR', 'Manager', 'Director', 'VP', 'GM', 'Employee', 'Intern'];
 const MANAGEMENT_PLUS = ['SuperUser', 'HR', 'Director', 'VP', 'GM', 'Manager'];
+const EMPLOYEE_DASHBOARD_ROLES = ['SuperUser', 'Manager', 'Director', 'VP', 'GM', 'Employee', 'Intern'];
 
 const AppRouter = () => (
   <AuthProvider>
@@ -62,7 +66,7 @@ const AppRouter = () => (
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
         <Route path="/dashboard" element={
-          <ProtectedRoute allowedRoles={ALL_ROLES}><Dashboard /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={EMPLOYEE_DASHBOARD_ROLES}><Dashboard /></ProtectedRoute>
         } />
 
         <Route path="/hr/dashboard" element={
@@ -122,6 +126,20 @@ const AppRouter = () => (
         <Route path="/holidays" element={
           <ProtectedRoute allowedRoles={ALL_ROLES}><HolidayManagement /></ProtectedRoute>
         } />
+
+        <Route path="/complaints/my" element={
+          <ProtectedRoute allowedRoles={ALL_ROLES}><MyComplaints /></ProtectedRoute>
+        } />
+
+        <Route path="/complaints/apply" element={
+          <ProtectedRoute allowedRoles={ALL_ROLES}><SubmitComplaint /></ProtectedRoute>
+        } />
+
+        <Route path="/complaints/director" element={
+          <ProtectedRoute allowedRoles={['SuperUser', 'Director']}><DirectorComplaints /></ProtectedRoute>
+        } />
+
+        <Route path="/complaint" element={<Navigate to="/complaints/my" replace />} />
 
         {/* Payroll */}
         <Route path="/payroll" element={

@@ -228,8 +228,9 @@ const AttendanceSummary = () => {
   const statCards = [
     { label: 'Present',  value: summary.present, gradient: 'var(--gradient-success)', icon: CheckCircle },
     { label: 'Absent',   value: summary.absent,  gradient: 'var(--gradient-error)',   icon: AlertCircle },
+    { label: 'Holiday',  value: summary.holiday, gradient: 'linear-gradient(135deg, #F472B6 0%, #DB2777 100%)', icon: Calendar },
+    { label: 'Week Off', value: summary.weekOff, gradient: 'var(--gradient-primary)',  icon: BarChart2 },
     { label: 'Late Ins', value: summary.late,    gradient: 'var(--gradient-warning)',  icon: Clock },
-    { label: 'Week Off', value: summary.weekOff, gradient: 'var(--gradient-primary)',  icon: Calendar },
     { label: 'Avg Hours',value: avgHours,         gradient: 'var(--gradient-accent)',   icon: TrendingUp, suffix: 'h' },
   ];
 
@@ -333,16 +334,16 @@ const AttendanceSummary = () => {
                   return (
                     <tr key={i} style={{ background: isWkend ? 'rgba(32,118,199,0.025)' : 'transparent' }}>
                       <td style={{ fontWeight: 700, fontSize: '0.88rem' }}>
-                        {date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                        {date.getUTCDate()} {date.toLocaleDateString('en-IN', { month: 'short', timeZone: 'UTC' })}
                       </td>
                       <td style={{ color: 'var(--color-text-secondary)', fontSize: '0.84rem' }}>
-                        {date.toLocaleDateString('en-IN', { weekday: 'short' })}
+                        {date.toLocaleDateString('en-IN', { weekday: 'short', timeZone: 'UTC' })}
                       </td>
                       <td style={{ fontWeight: att.inTime ? 700 : 400, color: att.inTime ? 'var(--color-success)' : 'var(--color-text-tertiary)', fontSize: '0.88rem' }}>
-                        {r.isWeekOff || r.status === 'A' ? '—' : fmtT(att.inTime)}
+                        {r.isWeekOff || r.status === 'A' || r.status === 'H' ? '—' : fmtT(att.inTime)}
                       </td>
                       <td style={{ fontWeight: att.outTime ? 700 : 400, color: att.outTime ? 'var(--color-primary)' : 'var(--color-text-tertiary)', fontSize: '0.88rem' }}>
-                        {r.isWeekOff || r.status === 'A' ? '—' : fmtT(att.outTime)}
+                        {r.isWeekOff || r.status === 'A' || r.status === 'H' ? '—' : fmtT(att.outTime)}
                       </td>
                       <td style={{ color: '#8B5CF6', fontSize: '0.85rem', fontVariantNumeric: 'tabular-nums', fontWeight: att.totalHours ? 700 : 400 }}>
                         {att.totalHours ? `${att.totalHours.toFixed(1)}h` : '—'}
@@ -350,7 +351,12 @@ const AttendanceSummary = () => {
                       <td>
                         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
                           <StatusBadge status={r.status} />
-                          {att.isLate && !r.isWeekOff && (
+                          {r.holiday && (
+                            <span style={{ fontSize: '0.7rem', color: '#DB2777', background: '#FDF2F8', padding: '2px 8px', borderRadius: 'var(--radius-full)', fontWeight: 700, border: '1px solid #FBCFE8' }}>
+                              {r.holiday.name}
+                            </span>
+                          )}
+                          {att.isLate && !r.isWeekOff && !r.holiday && (
                             <span style={{ fontSize: '0.7rem', color: 'var(--color-warning)', background: 'var(--color-warning-light)', padding: '2px 8px', borderRadius: 'var(--radius-full)', fontWeight: 700, border: '1px solid #FDE68A' }}>
                               Late {att.lateMinutes}m
                             </span>
@@ -668,7 +674,7 @@ const AttendanceSummary = () => {
         /* ─── Stats Grid ──────────────────────────────── */
         .asum-stat-grid {
           display: grid;
-          grid-template-columns: repeat(5, 1fr);
+          grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
           gap: 12px;
           margin-bottom: 22px;
         }
