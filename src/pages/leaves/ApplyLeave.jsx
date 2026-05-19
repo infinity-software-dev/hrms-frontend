@@ -284,7 +284,7 @@ const ApplyLeave = () => {
                   <input
                     type="date"
                     value={form.startDate}
-                    min={today()}
+                    min={form.leaveType === 'Paid' || form.leaveType === 'CompOff' ? undefined : today()}
                     onChange={(e) => {
                       set('startDate', e.target.value);
                       if (e.target.value > form.endDate) set('endDate', e.target.value);

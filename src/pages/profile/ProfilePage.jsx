@@ -113,11 +113,11 @@ const ProfilePage = () => {
 
   const savePassword = async (e) => {
     e.preventDefault();
-    // if (passForm.newPassword !== passForm.confirmPassword) {
-    //   toast.error('New passwords do not match');
-    //   return;
-    // }
-    // setSavingPassword(true);
+    if (passForm.newPassword !== passForm.confirmPassword) {
+      toast.error('New passwords do not match');
+      return;
+    }
+    setSavingPassword(true);
     try {
       await api.post('/auth/change-password', {
         currentPassword: passForm.currentPassword,
