@@ -110,6 +110,7 @@ const navGroups = [
   //     { icon: Calendar, label: 'Approvals', path: '/resignations/approvals', roles: ['SuperUser', 'HR', 'Director', 'VP', 'GM', 'Manager'] },
   //   ]
   // },
+  
 
   {
     label: 'Operations',
@@ -151,7 +152,7 @@ const navGroups = [
   },
 ];
 
-// ==================== Styles ============================
+// ==================== Styles ==================================
 const styles = {
   // Layout
   appContainer: {

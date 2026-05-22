@@ -7,7 +7,7 @@ import {
   User, Mail, Phone, MapPin, Briefcase, Hash,
   Shield, Camera, Loader2, Save, KeyRound, Droplet,
   ChevronRight, AlertCircle, ShieldCheck, UserCheck,
-  CheckCircle, Smartphone
+  CheckCircle, Smartphone, X
 } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -43,10 +43,14 @@ const ProfilePage = () => {
   const [selectedFile, setSelectedFile] = useState(null);
 
   useEffect(() => {
+    loadModels();
     fetchProfile();
     const handleResize = () => setIsMobile(window.innerWidth < 1024);
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      stopFaceDetectionLoop();
+    };
   }, []);
 
   const fetchProfile = async () => {
@@ -134,8 +138,22 @@ const ProfilePage = () => {
 
   const videoRef = useRef();
   const [modelsLoaded, setModelsLoaded] = useState(false);
+  const [modelsLoading, setModelsLoading] = useState(false);
+  const [verifyStatus, setVerifyStatus] = useState('idle'); // idle | scanning | detected | verifying | success | fail
+  const [faceConfidence, setFaceConfidence] = useState(0);
+  const [faceDetected, setFaceDetected] = useState(false);
+  const [autoVerifyCountdown, setAutoVerifyCountdown] = useState(null);
+
+  const detectionIntervalRef = useRef(null);
+  const autoVerifyTimerRef = useRef(null);
+  const verifyLockRef = useRef(false);
+  const handleVerifyFaceFnRef = useRef(null);
+  const modalOpenRef = useRef(false);
 
   const loadModels = async () => {
+    if (modelsLoaded) return true;
+    if (modelsLoading) return false;
+    setModelsLoading(true);
     try {
       const MODEL_URL = '/models';
       await Promise.all([
@@ -144,62 +162,205 @@ const ProfilePage = () => {
         faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
       ]);
       setModelsLoaded(true);
+      setModelsLoading(false);
+      return true;
     } catch (err) {
       console.error("Error loading models", err);
       toast.error("Failed to load face recognition models");
+      setModelsLoading(false);
+      return false;
     }
   };
 
-  const startVideo = () => {
-    navigator.mediaDevices.getUserMedia({ video: {} })
-      .then(stream => {
-        if (videoRef.current) videoRef.current.srcObject = stream;
-      })
-      .catch(err => toast.error("Webcam access denied"));
+  const startFaceDetectionLoop = () => {
+    stopFaceDetectionLoop();
+    setVerifyStatus('scanning');
+
+    const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 });
+
+    detectionIntervalRef.current = setInterval(async () => {
+      if (!videoRef.current || verifyLockRef.current) return;
+      try {
+        const detection = await faceapi
+          .detectSingleFace(videoRef.current, options)
+          .withFaceLandmarks()
+          .withFaceDescriptor();
+
+        if (detection) {
+          const score = detection.detection.score;
+          setFaceConfidence(Math.round(score * 100));
+          setFaceDetected(true);
+
+          if (!verifyLockRef.current) {
+            setVerifyStatus('detected');
+            // Auto-trigger registration capture after face is stably detected
+            if (!autoVerifyTimerRef.current) {
+              setAutoVerifyCountdown(2);
+              let count = 2;
+              autoVerifyTimerRef.current = setInterval(() => {
+                count -= 1;
+                setAutoVerifyCountdown(count);
+                if (count <= 0) {
+                  clearInterval(autoVerifyTimerRef.current);
+                  autoVerifyTimerRef.current = null;
+                  setAutoVerifyCountdown(null);
+                  handleVerifyFaceFnRef.current?.();
+                }
+              }, 1000);
+            }
+          }
+        } else {
+          setFaceDetected(false);
+          setFaceConfidence(0);
+          setVerifyStatus('scanning');
+          // Cancel auto-verify if face lost
+          if (autoVerifyTimerRef.current) {
+            clearInterval(autoVerifyTimerRef.current);
+            autoVerifyTimerRef.current = null;
+            setAutoVerifyCountdown(null);
+          }
+        }
+      } catch (_) {}
+    }, 500);
+  };
+
+  const stopFaceDetectionLoop = () => {
+    if (detectionIntervalRef.current) {
+      clearInterval(detectionIntervalRef.current);
+      detectionIntervalRef.current = null;
+    }
+    if (autoVerifyTimerRef.current) {
+      clearInterval(autoVerifyTimerRef.current);
+      autoVerifyTimerRef.current = null;
+    }
+  };
+
+  const startVideo = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+      });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.onloadedmetadata = () => {
+          startFaceDetectionLoop();
+        };
+      }
+    } catch (err) {
+      toast.error("Webcam access denied. Please allow camera permissions.");
+      setShowFaceModal(false);
+      modalOpenRef.current = false;
+    }
   };
 
   const stopVideo = () => {
+    modalOpenRef.current = false;
+    stopFaceDetectionLoop();
     if (videoRef.current && videoRef.current.srcObject) {
       videoRef.current.srcObject.getTracks().forEach(track => track.stop());
     }
+    setFaceDetected(false);
+    setFaceConfidence(0);
+    setAutoVerifyCountdown(null);
+    setVerifyStatus('idle');
+    verifyLockRef.current = false;
   };
 
   const handleRegisterFace = async () => {
-    if (!modelsLoaded) await loadModels();
+    const ok = await loadModels();
+    if (!ok) return;
+    setVerifyStatus('idle');
+    modalOpenRef.current = true;
     setShowFaceModal(true);
-    setTimeout(startVideo, 100);
+    setTimeout(startVideo, 200);
   };
 
   const captureFace = async () => {
-    if (!videoRef.current) return;
+    if (!videoRef.current || verifyLockRef.current) return;
+    verifyLockRef.current = true;
+    stopFaceDetectionLoop();
+
     setRegisteringFace(true);
+    setVerifyStatus('verifying');
 
     try {
-      // Use optimized settings for web to match mobile precision
-      const detection = await faceapi.detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.4 }))
-        .withFaceLandmarks()
-        .withFaceDescriptor();
+      let detection = null;
+      let attempts = 3;
+      const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.45 });
+
+      for (let i = 0; i < attempts; i++) {
+        if (!modalOpenRef.current) {
+          verifyLockRef.current = false;
+          setRegisteringFace(false);
+          return;
+        }
+
+        detection = await faceapi
+          .detectSingleFace(videoRef.current, options)
+          .withFaceLandmarks()
+          .withFaceDescriptor();
+
+        if (detection) {
+          break; // Success!
+        }
+        if (i < attempts - 1) {
+          await new Promise(r => setTimeout(r, 150));
+        }
+      }
 
       if (!detection) {
         toast.error("No face detected. Please reposition yourself.");
+        setVerifyStatus('fail');
+        verifyLockRef.current = false;
+        setRegisteringFace(false);
+        setTimeout(() => {
+          if (modalOpenRef.current) startFaceDetectionLoop();
+        }, 1500);
+        return;
+      }
+
+      if (!modalOpenRef.current) {
+        verifyLockRef.current = false;
         setRegisteringFace(false);
         return;
       }
 
       const descriptor = Array.from(detection.descriptor);
+      setVerifyStatus('success');
+      toast.success("Face ID registered successfully!");
+
       await api.put('/employees/profile/face-descriptor', { faceDescriptor: descriptor });
 
-      toast.success("Face ID registered successfully!");
+      await new Promise(r => setTimeout(r, 800));
+      
+      if (!modalOpenRef.current) {
+        verifyLockRef.current = false;
+        setRegisteringFace(false);
+        return;
+      }
+
       setShowFaceModal(false);
+      modalOpenRef.current = false;
       stopVideo();
       await refreshProfile();
       fetchProfile();
     } catch (err) {
+      console.error(err);
       toast.error(err.response?.data?.message || "Face registration failed");
+      setVerifyStatus('fail');
+      verifyLockRef.current = false;
+      setTimeout(() => {
+        if (modalOpenRef.current) {
+          setVerifyStatus('scanning');
+          startFaceDetectionLoop();
+        }
+      }, 2000);
     } finally {
       setRegisteringFace(false);
     }
   };
+
+  handleVerifyFaceFnRef.current = captureFace;
 
   if (loading) {
     return (
@@ -211,6 +372,24 @@ const ProfilePage = () => {
       </AppShell>
     );
   }
+
+  const ringColor = {
+    idle: '#94A3B8',
+    scanning: '#2076C7',
+    detected: '#F59E0B',
+    verifying: '#8B5CF6',
+    success: '#059669',
+    fail: '#DC2626',
+  }[verifyStatus];
+
+  const verifyStatusText = {
+    idle: 'Initializing camera…',
+    scanning: 'Scanning for face…',
+    detected: autoVerifyCountdown ? `Capturing in ${autoVerifyCountdown}s…` : 'Face detected!',
+    verifying: 'Processing biometric data…',
+    success: 'Face data captured ✓',
+    fail: 'Capture failed',
+  }[verifyStatus];
 
   return (
     <AppShell>
@@ -338,29 +517,14 @@ const ProfilePage = () => {
               </p>
 
 
-              {!profile?.faceDescriptor || profile.faceDescriptor.length === 0 ? (
-                <button
-                  onClick={handleRegisterFace}
-                  className="btn-primary full-width"
-                >
-                  <Camera size={16} />
-                  <span>Register Face ID</span>
-                </button>
-              ) : null}
-
-{/* // uncomment the below code to fix add the face edit functionlity  */}
-{/* 
-
-
-               <button 
-                onClick={handleRegisterFace} 
-                className={profile?.faceDescriptor?.length > 0 ? "btn-secondary full-width" : "btn-primary full-width"} 
+              <button
+                onClick={handleRegisterFace}
+                className={profile?.faceDescriptor?.length > 0 ? "btn-secondary full-width" : "btn-primary full-width"}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
               >
                 {profile?.faceDescriptor?.length > 0 ? <ShieldCheck size={16} /> : <Camera size={16} />}
-                <span>{profile?.faceDescriptor?.length > 0 ? "Update biometric data" : "Register Face ID"}</span>
-              </button>  */}
-
-
+                <span>{profile?.faceDescriptor?.length > 0 ? "Update Biometric Data" : "Register Face ID"}</span>
+              </button>
             </motion.div>
 
 
@@ -462,27 +626,127 @@ const ProfilePage = () => {
         {/* BORDERLESS FACE ID MODAL */}
         <AnimatePresence>
           {showFaceModal && (
-            <div className="profile-modal-overlay">
+            <div
+              className="att-modal-backdrop"
+              onClick={(e) => { if (e.target === e.currentTarget) { setShowFaceModal(false); stopVideo(); } }}
+            >
               <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                className="face-registration-modal"
+                initial={{ scale: 0.88, opacity: 0, y: 28 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.88, opacity: 0, y: 24 }}
+                transition={{ type: 'spring', damping: 28, stiffness: 380 }}
+                className="att-face-modal"
               >
-                <h2>Register biometrics</h2>
-                <p>Position your face within the frame</p>
+                {/* Close */}
+                <button
+                  className="att-face-close"
+                  onClick={() => { setShowFaceModal(false); stopVideo(); }}
+                >
+                  <X size={16} />
+                </button>
 
-                <div className="camera-container">
-                  <video ref={videoRef} autoPlay muted playsInline />
-                  <div className="camera-mask" />
-                  <div className="camera-scanning-line" />
+                {/* Header */}
+                <div className="att-face-header">
+                  <div className="att-face-icon" style={{ background: `linear-gradient(135deg, ${ringColor}, ${ringColor}88)` }}>
+                    <Shield size={22} color="#fff" />
+                  </div>
+                  <h2 className="att-face-title">Biometric Registration</h2>
+                  <p className="att-face-subtitle">Register Face ID Profile</p>
                 </div>
 
-                <div className="modal-actions">
-                  <button className="btn-cancel" onClick={() => { setShowFaceModal(false); stopVideo(); }}>Cancel</button>
-                  <button className="btn-capture" onClick={captureFace} disabled={registeringFace}>
-                    {registeringFace ? <Loader2 size={20} className="spin" /> : "Capture Data"}
-                  </button>
+                {/* Camera */}
+                <div
+                  className="att-camera-ring"
+                  style={{ borderColor: ringColor, boxShadow: `0 0 0 6px ${ringColor}1F, 0 10px 15px -3px rgba(0,0,0,0.08)` }}
+                >
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    muted
+                    playsInline
+                    className="att-camera-video"
+                  />
+                  {/* Scan animation */}
+                  {(verifyStatus === 'scanning' || verifyStatus === 'detected') && (
+                    <div className="att-scan-line" style={{ background: `linear-gradient(180deg, transparent 0%, ${ringColor}44 48%, transparent 100%)` }} />
+                  )}
+                  {/* Corner brackets */}
+                  <div className="att-cam-corner att-cam-tl" style={{ borderColor: ringColor }} />
+                  <div className="att-cam-corner att-cam-tr" style={{ borderColor: ringColor }} />
+                  <div className="att-cam-corner att-cam-bl" style={{ borderColor: ringColor }} />
+                  <div className="att-cam-corner att-cam-br" style={{ borderColor: ringColor }} />
+
+                  {/* Success overlay */}
+                  {verifyStatus === 'success' && (
+                    <div className="att-success-overlay">
+                      <CheckCircle size={52} color="#059669" />
+                    </div>
+                  )}
+                  {/* Fail overlay */}
+                  {verifyStatus === 'fail' && (
+                    <div className="att-fail-overlay">
+                      <AlertCircle size={52} color="#DC2626" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Status indicator */}
+                <div className="att-verify-status-row">
+                  <div
+                    className="att-verify-dot"
+                    style={{ background: ringColor, boxShadow: `0 0 8px ${ringColor}66` }}
+                  >
+                    {registeringFace && <Loader2 size={10} className="animate-spin" style={{ color: '#fff' }} />}
+                  </div>
+                  <span className="att-verify-status-text" style={{ color: ringColor }}>
+                    {verifyStatusText}
+                  </span>
+                </div>
+
+                {/* Confidence bar */}
+                {faceConfidence > 0 && verifyStatus !== 'success' && verifyStatus !== 'fail' && (
+                  <div className="att-confidence-bar-wrap">
+                    <div className="att-confidence-bar">
+                      <div
+                        className="att-confidence-fill"
+                        style={{ width: `${faceConfidence}%`, background: faceConfidence > 70 ? '#059669' : faceConfidence > 40 ? '#F59E0B' : '#DC2626' }}
+                      />
+                    </div>
+                    <span className="att-confidence-label">{faceConfidence}% confidence</span>
+                  </div>
+                )}
+
+                {/* Manual verify fallback */}
+                <div className="att-face-footer">
+                  {verifyStatus !== 'success' && (
+                    <>
+                      <p className="att-face-hint">
+                        {verifyStatus === 'scanning' ? 'Position your face clearly in the frame' : ''}
+                        {verifyStatus === 'detected' ? `Capturing automatically in ${autoVerifyCountdown ?? '…'}s` : ''}
+                        {verifyStatus === 'verifying' ? 'Processing face biometrics…' : ''}
+                        {verifyStatus === 'fail' ? 'Scanning will restart automatically' : ''}
+                        {verifyStatus === 'idle' ? 'Starting camera…' : ''}
+                      </p>
+                      <div className="att-face-actions">
+                        <button
+                          className="btn-secondary"
+                          onClick={() => { setShowFaceModal(false); stopVideo(); }}
+                        >
+                          Cancel
+                        </button>
+                        {(verifyStatus === 'detected' || verifyStatus === 'scanning') && (
+                          <button
+                            className="btn-primary"
+                            onClick={captureFace}
+                            disabled={registeringFace}
+                          >
+                            {registeringFace ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
+                            Capture Data
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               </motion.div>
             </div>
@@ -762,56 +1026,279 @@ const ProfilePage = () => {
         .btn-save-profile:hover { transform: translateY(-3px); box-shadow: 0 15px 35px rgba(32, 118, 199, 0.35); }
         .btn-save-profile:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 
-        /* Modal */
-        .profile-modal-overlay {
-          position: fixed; inset: 0; z-index: 10000;
-          background: rgba(15, 23, 42, 0.8);
-          backdrop-filter: blur(8px);
-          display: flex; align-items: center; justify-content: center;
+        /* ─── Modal Backdrop (Fixed + Centered) ── */
+        .att-modal-backdrop {
+          position: fixed;
+          inset: 0;
+          background: rgba(15, 23, 42, 0.72);
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
+          z-index: 10000;
+          display: flex;
+          align-items: center;
+          justify-content: center;
           padding: 20px;
         }
 
-        .face-registration-modal {
+        /* ─── Face Modal ─── */
+        .att-face-modal {
+          position: relative;
           background: #fff;
-          width: 100%; max-width: 440px;
-          border-radius: 32px;
-          padding: 40px;
+          border-radius: 24px;
+          width: 100%;
+          max-width: 420px;
+          padding: 28px 28px 24px;
           text-align: center;
-          box-shadow: 0 40px 100px rgba(0,0,0,0.5);
+          box-shadow:
+            0 32px 80px rgba(0,0,0,0.22),
+            0 8px 24px rgba(0,0,0,0.08),
+            inset 0 1px 0 rgba(255,255,255,0.8);
+          max-height: 95dvh;
+          overflow-y: auto;
+          margin: auto;
+          overscroll-behavior: contain;
         }
 
-        .face-registration-modal h2 { font-size: 1.6rem; font-weight: 900; margin-bottom: 8px; }
-        .face-registration-modal p  { color: #64748B; margin-bottom: 32px; font-weight: 500; }
+        .att-face-close {
+          position: absolute;
+          top: 14px;
+          right: 14px;
+          width: 32px;
+          height: 32px;
+          border-radius: 8px;
+          background: #F8FAFC;
+          border: 1px solid #E2E8F0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          color: #64748B;
+          transition: all 0.2s;
+        }
 
-        .camera-container {
+        .att-face-close:hover {
+          background: #FEF2F2;
+          color: #DC2626;
+          border-color: #FCA5A5;
+        }
+
+        .att-face-header {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          margin-bottom: 20px;
+        }
+
+        .att-face-icon {
+          width: 52px;
+          height: 52px;
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin: 0 auto 12px;
+          box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+          transition: background 0.4s ease;
+        }
+
+        .att-face-title {
+          font-size: 1.15rem;
+          font-weight: 900;
+          letter-spacing: -0.03em;
+          color: #111827;
+          margin-bottom: 3px;
+        }
+
+        .att-face-subtitle {
+          color: #64748B;
+          font-size: 0.8rem;
+          font-weight: 600;
+        }
+
+        /* Camera ring */
+        .att-camera-ring {
           position: relative;
-          width: 280px; height: 280px;
-          margin: 0 auto 32px;
+          width: clamp(160px, 45vw, 220px);
+          height: clamp(160px, 45vw, 220px);
+          margin: 0 auto 16px;
           border-radius: 50%;
           overflow: hidden;
+          border: 3px solid #94A3B8;
+          transition: border-color 0.35s ease, box-shadow 0.35s ease;
           background: #000;
         }
 
-        .camera-container video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
-        .camera-mask { position: absolute; inset: 0; border: 10px solid #fff; border-radius: 50%; }
-        .camera-scanning-line {
-          position: absolute; top: 0; left: 0; right: 0; height: 2px;
-          background: var(--color-primary);
-          box-shadow: 0 0 15px var(--color-primary);
-          animation: scan 2s linear infinite;
+        .att-camera-video {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          transform: scaleX(-1);
         }
 
-        @keyframes scan {
-          0% { top: 0; }
-          100% { top: 100%; }
+        .att-scan-line {
+          position: absolute;
+          inset: 0;
+          animation: att-scan 2s ease-in-out infinite;
+          pointer-events: none;
         }
 
-        .modal-actions { display: flex; gap: 12px; }
-        .modal-actions button { flex: 1; padding: 14px; border-radius: 14px; font-weight: 800; font-family: inherit; cursor: pointer; }
-        .btn-cancel { background: #F1F5F9; border: none; color: #475569; }
-        .btn-capture { background: var(--gradient-primary); border: none; color: #fff; }
+        @keyframes att-scan {
+          0%   { transform: translateY(-100%); }
+          100% { transform: translateY(100%); }
+        }
 
-        .spin { animation: spin 1s linear infinite; }
+        /* Camera corner brackets */
+        .att-cam-corner {
+          position: absolute;
+          width: 22px;
+          height: 22px;
+          border-style: solid;
+          transition: border-color 0.3s ease;
+        }
+
+        .att-cam-tl { top: 8px;    left: 8px;    border-width: 2px 0 0 2px; border-radius: 3px 0 0 0; }
+        .att-cam-tr { top: 8px;    right: 8px;   border-width: 2px 2px 0 0; border-radius: 0 3px 0 0; }
+        .att-cam-bl { bottom: 8px; left: 8px;    border-width: 0 0 2px 2px; border-radius: 0 0 0 3px; }
+        .att-cam-br { bottom: 8px; right: 8px;   border-width: 0 2px 2px 0; border-radius: 0 0 3px 0; }
+
+        /* Success / Fail overlays */
+        .att-success-overlay,
+        .att-fail-overlay {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+        }
+
+        .att-success-overlay {
+          background: rgba(5,150,105,0.75);
+          animation: att-overlay-in 0.35s ease;
+        }
+
+        .att-fail-overlay {
+          background: rgba(220,38,38,0.7);
+          animation: att-overlay-in 0.35s ease;
+        }
+
+        @keyframes att-overlay-in {
+          from { opacity: 0; transform: scale(0.8); }
+          to   { opacity: 1; transform: scale(1); }
+        }
+
+        /* Status row */
+        .att-verify-status-row {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          margin-bottom: 12px;
+        }
+
+        .att-verify-dot {
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          transition: background 0.3s ease;
+        }
+
+        .att-verify-status-text {
+          font-size: 0.82rem;
+          font-weight: 700;
+          transition: color 0.3s ease;
+        }
+
+        /* Confidence bar */
+        .att-confidence-bar-wrap {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 14px;
+          padding: 0 4px;
+        }
+
+        .att-confidence-bar {
+          flex: 1;
+          height: 5px;
+          background: #E2E8F0;
+          border-radius: 99px;
+          overflow: hidden;
+        }
+
+        .att-confidence-fill {
+          height: 100%;
+          border-radius: 99px;
+          transition: width 0.3s ease, background 0.3s ease;
+        }
+
+        .att-confidence-label {
+          font-size: 0.68rem;
+          font-weight: 700;
+          color: #94A3B8;
+          white-space: nowrap;
+        }
+
+        /* Face footer */
+        .att-face-footer { width: 100%; }
+
+        .att-face-hint {
+          font-size: 0.75rem;
+          color: #94A3B8;
+          margin-bottom: 14px;
+          min-height: 20px;
+        }
+
+        .att-face-actions {
+          display: flex;
+          gap: 10px;
+          width: 100%;
+        }
+
+        .att-face-actions button { flex: 1; }
+
+        .btn-secondary {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+          background: #F1F5F9;
+          color: #475569;
+          border: 1.5px solid #E2E8F0;
+          padding: 14px;
+          border-radius: 14px;
+          font-size: 1rem;
+          font-weight: 800;
+          cursor: pointer;
+          transition: all 0.2s;
+          font-family: inherit;
+        }
+        .btn-secondary:hover { background: #E2E8F0; color: #1E293B; }
+
+        .btn-primary {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+          background: var(--gradient-primary);
+          color: #fff;
+          border: none;
+          padding: 14px;
+          border-radius: 14px;
+          font-size: 1rem;
+          font-weight: 800;
+          cursor: pointer;
+          transition: all 0.2s;
+          font-family: inherit;
+        }
+        .btn-primary:hover { opacity: 0.95; }
+        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .spin, .animate-spin { animation: spin 1s linear infinite; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
 
         /* RESPONSIVE */

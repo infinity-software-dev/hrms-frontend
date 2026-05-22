@@ -154,6 +154,7 @@ const AttendancePage = () => {
   const verifyLockRef = useRef(false);        // prevent double-invoke
   const faceOpRef = useRef(null);             // mirror of faceOp state — always fresh in closures
   const handleVerifyFaceFnRef = useRef(null); // always-fresh fn ref so stale intervals call latest ver
+  const modalOpenRef = useRef(false);
 
   /* ── Face Models ── */
   const loadModels = async () => {
@@ -215,6 +216,7 @@ const AttendancePage = () => {
   };
 
   const stopVideo = () => {
+    modalOpenRef.current = false;
     stopFaceDetectionLoop();
     if (videoRef.current?.srcObject)
       videoRef.current.srcObject.getTracks().forEach(t => t.stop());
@@ -293,11 +295,6 @@ const AttendancePage = () => {
   const handleVerifyFaceAndProceed = async () => {
     if (!videoRef.current || verifyLockRef.current) return;
     verifyLockRef.current = true;
-    // ✅ DEFINITIVE FIX: read from faceOpRef — a mutable ref that is ALWAYS
-    // updated synchronously (not async like setState). This is immune to:
-    //   1. Stale closures (interval callbacks holding old function refs)
-    //   2. React batching delays (setState is async, ref writes are sync)
-    //   3. Re-render timing (ref reads are always current-cycle)
     const op = faceOpRef.current;
     stopFaceDetectionLoop();
 
@@ -313,25 +310,48 @@ const AttendancePage = () => {
         return;
       }
 
+      let detection = null;
+      let dist = 1.0;
+      let attempts = 3;
       const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.45 });
-      const detection = await faceapi
-        .detectSingleFace(videoRef.current, options)
-        .withFaceLandmarks()
-        .withFaceDescriptor();
+
+      for (let i = 0; i < attempts; i++) {
+        if (!modalOpenRef.current) {
+          verifyLockRef.current = false;
+          setVerifyingFace(false);
+          return;
+        }
+
+        detection = await faceapi
+          .detectSingleFace(videoRef.current, options)
+          .withFaceLandmarks()
+          .withFaceDescriptor();
+
+        if (detection) {
+          dist = faceapi.euclideanDistance(
+            detection.descriptor,
+            new Float32Array(user.faceDescriptor)
+          );
+          if (dist <= 0.50) {
+            break;
+          }
+        }
+
+        if (i < attempts - 1) {
+          await new Promise(r => setTimeout(r, 150));
+        }
+      }
 
       if (!detection) {
         toast.error('No face detected. Reposition and try again.');
         setVerifyStatus('fail');
         verifyLockRef.current = false;
         setVerifyingFace(false);
-        setTimeout(() => { startFaceDetectionLoop(); }, 1500);
+        setTimeout(() => {
+          if (modalOpenRef.current) startFaceDetectionLoop();
+        }, 1500);
         return;
       }
-
-      const dist = faceapi.euclideanDistance(
-        detection.descriptor,
-        new Float32Array(user.faceDescriptor)
-      );
 
       if (dist > 0.50) {
         toast.error('Face mismatch. Please try again.');
@@ -339,9 +359,17 @@ const AttendancePage = () => {
         verifyLockRef.current = false;
         setVerifyingFace(false);
         setTimeout(() => {
-          setVerifyStatus('scanning');
-          startFaceDetectionLoop();
+          if (modalOpenRef.current) {
+            setVerifyStatus('scanning');
+            startFaceDetectionLoop();
+          }
         }, 2000);
+        return;
+      }
+
+      if (!modalOpenRef.current) {
+        verifyLockRef.current = false;
+        setVerifyingFace(false);
         return;
       }
 
@@ -349,8 +377,14 @@ const AttendancePage = () => {
       toast.success('Identity Verified ✓');
       await new Promise(r => setTimeout(r, 800));
 
-      // ✅ Use local `op` — NOT the possibly-stale `faceOp` state
+      if (!modalOpenRef.current) {
+        verifyLockRef.current = false;
+        setVerifyingFace(false);
+        return;
+      }
+
       setShowFaceModal(false);
+      modalOpenRef.current = false;
       stopVideo();
 
       if (op === 'checkin') {
@@ -364,15 +398,15 @@ const AttendancePage = () => {
       setVerifyStatus('fail');
       verifyLockRef.current = false;
       setTimeout(() => {
-        setVerifyStatus('scanning');
-        startFaceDetectionLoop();
+        if (modalOpenRef.current) {
+          setVerifyStatus('scanning');
+          startFaceDetectionLoop();
+        }
       }, 2000);
     } finally {
       setVerifyingFace(false);
     }
   };
-  // ✅ Keep the fn-ref in sync on every render so interval closures always
-  // dispatch to the latest version of handleVerifyFaceAndProceed.
   handleVerifyFaceFnRef.current = handleVerifyFaceAndProceed;
 
   /* ── Cleanup on unmount ── */
@@ -499,6 +533,7 @@ const AttendancePage = () => {
     faceOpRef.current = 'checkin';
     setFaceOp('checkin');
     setVerifyStatus('idle');
+    modalOpenRef.current = true;
     setShowFaceModal(true);
     setTimeout(startVideo, 200);
   };
@@ -830,6 +865,7 @@ const AttendancePage = () => {
                         faceOpRef.current = 'checkout';
                         setFaceOp('checkout');
                         setVerifyStatus('idle');
+                        modalOpenRef.current = true;
                         setShowFaceModal(true);
                         setTimeout(startVideo, 200);
                       }}
