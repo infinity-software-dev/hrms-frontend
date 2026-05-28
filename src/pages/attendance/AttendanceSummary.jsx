@@ -185,6 +185,15 @@ const AttendanceSummary = () => {
   const monthName = new Date(year, month).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
   const avgHours = summary.present > 0 ? (summary.totalHours / summary.present).toFixed(1) : '—';
 
+  const formatHours = (hours) => {
+  if (!hours && hours !== 0) return '—';
+
+  const hrs = Math.floor(hours);
+  const mins = Math.round((hours - hrs) * 60);
+
+  return `${hrs}h ${mins}m`;
+};
+
   const handleOpenCorrection = (dayData) => {
     const record = dayData.myAttendance;
     if (!record) {
@@ -346,7 +355,8 @@ const AttendanceSummary = () => {
                         {r.isWeekOff || r.status === 'A' || r.status === 'H' ? '—' : fmtT(att.outTime)}
                       </td>
                       <td style={{ color: '#8B5CF6', fontSize: '0.85rem', fontVariantNumeric: 'tabular-nums', fontWeight: att.totalHours ? 700 : 400 }}>
-                        {att.totalHours ? `${att.totalHours.toFixed(1)}h` : '—'}
+                        {/* {att.totalHours ? `${att.totalHours.toFixed(1)}h` : '—'} */}
+                        {att.totalHours ? formatHours(att.totalHours) : '—'}
                       </td>
                       <td>
                         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
