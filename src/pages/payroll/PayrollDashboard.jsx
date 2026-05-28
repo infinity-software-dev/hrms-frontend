@@ -10,6 +10,52 @@ import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import XLSX from 'xlsx-js-style';
 
+/**
+ * Centralized payroll row computation — single source of truth for both
+ * the dashboard table rendering AND the Excel export.
+ * Prevents any mismatch between what the user sees and what gets exported.
+ */
+const computePayrollRow = (emp, payrolls) => {
+  const p = payrolls.find(pay => pay.employeeId === emp._id || pay.employeeId?._id === emp._id);
+  const isProcessed = !!p;
+
+  // Leaves Taken = Absent days + Paid Leaves + Half-day deductions (each half day = 0.5 leave)
+  // Always derive from components to ensure paidLeaves are included correctly,
+  // since old backend records might have missed adding paidLeaves to p.leavesTaken.
+  const leavesTaken = isProcessed
+    ? (p.absentDays || 0)  + ((p.halfDays || 0) * 0.5)
+    : 0;
+
+  const baseSalary = isProcessed ? (p.baseSalary || 0) : (emp.salary || 0);
+  const grossSalary = isProcessed ? (p.grossEarnings || 0) : 0;
+  const ptDeduction = isProcessed ? (p.professionalTax || 0) : 0;
+  const netSalary = isProcessed ? (p.netSalary || 0) : 0;
+
+  return {
+    p,
+    isProcessed,
+    leavesTaken,
+    baseSalary,
+    employeeCTC: baseSalary,
+    grossSalary,
+    ptDeduction,
+    netSalary,
+    totalPay: netSalary,
+    workingDays: isProcessed ? (p.totalDaysInMonth || 0) : 0,
+    presentDays: isProcessed ? (p.presentDays || 0) : 0,
+    halfDays: isProcessed ? (p.halfDays || 0) : 0,
+    absentDays: isProcessed ? (p.absentDays || 0) : 0,
+    paidLeaves: isProcessed ? (p.paidLeaves || 0) : 0,
+    weekOffs: isProcessed ? (p.weekOffs || 0) : 0,
+    holidays: isProcessed ? (p.holidays || 0) : 0,
+    paidDays: isProcessed ? (p.paidDays || 0) : 0,
+    // Effective present days for Excel: full present + half-day contribution (0.5 each)
+    effectivePresentDays: isProcessed
+      ? (p.presentDays || 0) + ((p.halfDays || 0) * 0.5)
+      : 0,
+  };
+};
+
 const PayrollDashboard = () => {
   const { user } = useAuth();
 
@@ -155,6 +201,8 @@ const PayrollDashboard = () => {
           "Working Days",
           "Leaves Taken",
           "Days Present",
+          "Holidays Count",
+          "Week Offs Count",
           "Base Salary (Total Salary)",
           "Employee CTC (same as Total Salary)",
           "Gross Salary",
@@ -166,20 +214,12 @@ const PayrollDashboard = () => {
 
       let totalPaySum = 0;
       filteredEmployees.forEach((emp, index) => {
-        const p = payrolls.find(pay => pay.employeeId === emp._id || pay.employeeId?._id === emp._id);
-        const isProcessed = !!p;
+        // ── Use the SAME centralized helper as the dashboard table ──
+        const row = computePayrollRow(emp, payrolls);
 
         const joiningDateFormatted = emp.joiningDate ? new Date(emp.joiningDate).toLocaleDateString('en-IN') : '—';
-        const leavesTaken = isProcessed ? ((p.paidLeaves || 0) + (p.unpaidLeaves || 0)) : 0;
 
-        const baseSalary = isProcessed ? p.baseSalary : (emp.salary || 0);
-        const employeeCTC = baseSalary;
-        const grossSalary = isProcessed ? p.grossEarnings : 0;
-        const ptDeduction = isProcessed ? p.professionalTax : 0;
-        const netSalary = isProcessed ? p.netSalary : 0;
-        const totalPay = netSalary;
-
-        totalPaySum += totalPay;
+        totalPaySum += row.totalPay;
 
         aoa.push([
           index + 1,
@@ -193,22 +233,24 @@ const PayrollDashboard = () => {
           '', // MICR (keep it blank)
           emp.branch || '—',
           joiningDateFormatted,
-          isProcessed ? p.totalDaysInMonth : 0,
-          leavesTaken,
-          isProcessed ? p.presentDays : 0,
-          baseSalary,
-          employeeCTC,
-          grossSalary,
-          ptDeduction,
-          netSalary,
-          totalPay
+          row.workingDays,
+          row.leavesTaken,
+          row.effectivePresentDays,
+          row.holidays,
+          row.weekOffs,
+          row.baseSalary,
+          row.employeeCTC,
+          row.grossSalary,
+          row.ptDeduction,
+          row.netSalary,
+          row.totalPay
         ]);
       });
 
       // Total row at the bottom
-      const totalRow = Array(20).fill('');
+      const totalRow = Array(22).fill('');
       totalRow[0] = 'Total';
-      totalRow[19] = totalPaySum;
+      totalRow[21] = totalPaySum;
       aoa.push(totalRow);
 
       const wb = XLSX.utils.book_new();
@@ -230,6 +272,8 @@ const PayrollDashboard = () => {
         { wch: 15 }, // Working Days
         { wch: 12 }, // Leaves Taken
         { wch: 12 }, // Days Present
+        { wch: 15 }, // Holidays Count
+        { wch: 15 }, // Week Offs Count
         { wch: 25 }, // Base Salary (Total Salary)
         { wch: 30 }, // Employee CTC (same as Total Salary)
         { wch: 15 }, // Gross Salary
@@ -293,8 +337,8 @@ const PayrollDashboard = () => {
 
       // Merge cells for Title and Subtitle
       ws['!merges'] = [
-        { s: { r: 0, c: 0 }, e: { r: 0, c: 19 } },
-        { s: { r: 1, c: 0 }, e: { r: 1, c: 19 } }
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 21 } },
+        { s: { r: 1, c: 0 }, e: { r: 1, c: 21 } }
       ];
 
       // Walk through cells and apply styles dynamically
@@ -315,7 +359,7 @@ const PayrollDashboard = () => {
             ws[cellRef].s = headerStyle;
           } else if (R === range.e.r) {
             ws[cellRef].s = totalStyle;
-            if (C === 19) {
+            if (C === 21) {
               ws[cellRef].s.alignment = { horizontal: "right", vertical: "center" };
             }
           } else if (R > 3) {
@@ -323,7 +367,7 @@ const PayrollDashboard = () => {
             ws[cellRef].s = { ...dataStyle };
 
             // Set default alignment
-            if ([0, 11, 12, 13, 14, 15, 16, 17, 18, 19].includes(C)) {
+            if ([0, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21].includes(C)) {
               ws[cellRef].s.alignment = { horizontal: "right", vertical: "center" };
             } else if ([1, 3, 7, 8, 10].includes(C)) {
               ws[cellRef].s.alignment = { horizontal: "center", vertical: "center" };
@@ -413,7 +457,8 @@ const PayrollDashboard = () => {
                   <tr style={{ background: '#f8fafc' }}>
                     <th style={{ padding: '20px 24px', textAlign: 'left', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Employee</th>
                     <th style={{ padding: '20px 24px', textAlign: 'left', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Working Days</th>
-                    <th style={{ padding: '20px 24px', textAlign: 'left', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>H / A / P / WO / HL</th>
+                    <th style={{ padding: '20px 24px', textAlign: 'left', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>H / A / P / WO / HL / PL</th>
+                    <th style={{ padding: '20px 24px', textAlign: 'left', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Leaves Taken</th>
                     <th style={{ padding: '20px 24px', textAlign: 'left', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Basic Salary</th>
                     <th style={{ padding: '20px 24px', textAlign: 'left', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Gross Salary</th>
                     <th style={{ padding: '20px 24px', textAlign: 'left', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Deduction (PT)</th>
@@ -424,8 +469,8 @@ const PayrollDashboard = () => {
                 <tbody>
                   <AnimatePresence mode="popLayout">
                     {paginatedEmployees.map((emp, index) => {
-                      const p = payrolls.find(pay => pay.employeeId === emp._id || pay.employeeId?._id === emp._id);
-                      const isProcessed = !!p;
+                      const row = computePayrollRow(emp, payrolls);
+                      const { p, isProcessed } = row;
 
                       return (
                         <motion.tr
@@ -449,7 +494,7 @@ const PayrollDashboard = () => {
                             </div>
                           </td>
                           <td style={{ padding: '20px 24px' }}>
-                            <div style={{ fontWeight: 700, color: '#334155' }}>{isProcessed ? `${p.paidDays} / ${p.totalDaysInMonth}` : '-'} Days</div>
+                            <div style={{ fontWeight: 700, color: '#334155' }}>{isProcessed ? `${row.paidDays} / ${row.workingDays}` : '-'} Days</div>
                           </td>
                           <td style={{ padding: '20px 24px' }}>
                             {isProcessed ? (
@@ -462,7 +507,7 @@ const PayrollDashboard = () => {
                                   title="Click to view Half Days"
                                   style={{ background: '#fffbeb', color: '#b45309', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700, border: 'none', cursor: 'pointer' }}
                                 >
-                                  {p.halfDays}H
+                                  {row.halfDays}H
                                 </button>
                                 <button
                                   onClick={() => {
@@ -472,32 +517,42 @@ const PayrollDashboard = () => {
                                   title="Click to view Absents"
                                   style={{ background: '#fef2f2', color: '#b91c1c', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700, border: 'none', cursor: 'pointer' }}
                                 >
-                                  {p.absentDays}A
+                                  {row.absentDays}A
                                 </button>
                                 <button onClick={() => { setSelectedPayroll({ ...p, detailType: 'Present Days', details: p.presentDayDetails || [] }); setShowDetailsModal(true); }} title="Click to view Present Days" style={{ border: 'none', cursor: 'pointer', background: '#f0fdf4', color: '#15803d', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700 }}>
-                                  {p.presentDays}P
+                                  {row.presentDays}P
                                 </button>
                                 <span title="Weekly Offs" style={{ background: '#f1f5f9', color: '#475569', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700 }}>
-                                  {p.weekOffs || 0}WO
+                                  {row.weekOffs}WO
                                 </span>
                                 <span title="Holidays" style={{ background: '#f3e8ff', color: '#6b21a8', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700 }}>
-                                  {p.holidays || 0}HL
+                                  {row.holidays}HL
+                                </span>
+                                <span title="Paid Leaves" style={{ background: '#dbeafe', color: '#1e3a8a', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700 }}>
+                                  {row.paidLeaves}PL
                                 </span>
                               </div>
+                            ) : '-'}
+                          </td>
+                          <td style={{ padding: '20px 24px' }}>
+                            {isProcessed ? (
+                              <span style={{ background: '#fef2f2', color: '#b91c1c', padding: '4px 10px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 800 }}>
+                                {row.leavesTaken}
+                              </span>
                             ) : '-'}
                           </td>
                           <td style={{ padding: '20px 24px', fontWeight: 600, color: '#475569' }}>
                             ₹{emp.salary?.toLocaleString() || '0'}
                           </td>
                           <td style={{ padding: '20px 24px', fontWeight: 600, color: '#475569' }}>
-                            {isProcessed ? `₹${p.grossEarnings.toLocaleString()}` : '-'}
+                            {isProcessed ? `₹${row.grossSalary.toLocaleString()}` : '-'}
                           </td>
                           <td style={{ padding: '20px 24px', color: '#ef4444', fontWeight: 600 }}>
-                            {isProcessed ? `-₹${p.professionalTax}` : '-'}
+                            {isProcessed ? `-₹${row.ptDeduction}` : '-'}
                           </td>
                           <td style={{ padding: '20px 24px' }}>
                             {isProcessed ? (
-                              <div style={{ fontWeight: 900, fontSize: '1.1rem', color: '#10b981' }}>₹{p.netSalary.toLocaleString()}</div>
+                              <div style={{ fontWeight: 900, fontSize: '1.1rem', color: '#10b981' }}>₹{row.netSalary.toLocaleString()}</div>
                             ) : (
                               <span style={{ fontSize: '0.8rem', color: '#cbd5e1', fontWeight: 600 }}>Pending</span>
                             )}
