@@ -103,13 +103,13 @@ const navGroups = [
 
 
 
-  // {
-  //   label: 'Resignation',
-  //   items: [
-  //     { icon: Users, label: 'My Resignation', path: '/resignations/my', roles: ['SuperUser', 'Manager', 'Director', 'VP', 'GM', 'Employee', 'Intern', 'fresher'] },
-  //     { icon: Calendar, label: 'Approvals', path: '/resignations/approvals', roles: ['SuperUser', 'HR', 'Director', 'VP', 'GM', 'Manager'] },
-  //   ]
-  // },
+  {
+    label: 'Resignation',
+    items: [
+      { icon: Users, label: 'My Resignation', path: '/resignations/my', roles: ['SuperUser', 'Manager', 'Director', 'VP', 'GM', 'Employee', 'Intern', 'fresher'] },
+      { icon: Calendar, label: 'Approvals', path: '/resignations/approvals', roles: ['SuperUser', 'HR', 'Director', 'VP', 'GM', 'Manager'] },
+    ]
+  },
   
 
   {

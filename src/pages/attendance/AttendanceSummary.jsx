@@ -194,6 +194,8 @@ const AttendanceSummary = () => {
   return `${hrs}h ${mins}m`;
 };
 
+
+
   const handleOpenCorrection = (dayData) => {
     const record = dayData.myAttendance;
     if (!record) {

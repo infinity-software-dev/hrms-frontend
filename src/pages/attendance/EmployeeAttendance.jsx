@@ -22,6 +22,18 @@ const STATUS_LABELS = {
   Coff: 'Comp Off', AUTO: 'Partial', H: 'Holiday', Half: 'Half Day',
 };
 
+// Map leave types from backend to display labels
+const LEAVE_TYPE_LABELS = {
+  Paid: 'Paid Leave',
+  Casual: 'Casual Leave',
+  Sick: 'Sick Leave',
+  Earned: 'Earned Leave',
+  Unpaid: 'Unpaid Leave',
+  CompOff: 'Comp Off',
+  MaternityPaternity: 'Maternity/Paternity',
+  Other: 'Other Leave',
+};
+
 const STATUS_OPTIONS = [
   { value: '', label: 'All Statuses' },
   { value: 'P', label: 'Present' },
@@ -33,17 +45,39 @@ const STATUS_OPTIONS = [
   { value: 'Half', label: 'Half Day' },
 ];
 
-const StatusBadge = ({ status }) => {
+/** Resolve a human-readable status label, considering leaveType enrichment */
+const getStatusLabel = (status, leaveType, leaveStatus) => {
+  if (status === 'L') {
+    const leaveLabel = LEAVE_TYPE_LABELS[leaveType] || leaveType || 'Leave';
+    if (leaveStatus === 'Pending') {
+      return `${leaveLabel} (Pending)`;
+    }
+    return leaveLabel;
+  }
+  return STATUS_LABELS[status] || status;
+};
+
+const StatusBadge = ({ status, leaveType, leaveStatus, holidayName }) => {
   const getIcon = () => {
     if (status === 'P') return <CheckCircle size={12} />;
     if (status === 'A') return <AlertCircle size={12} />;
     return null;
   };
   if (!status) return <span className="badge">--</span>;
+
+  const label = getStatusLabel(status, leaveType, leaveStatus);
+
   return (
-    <span className={`badge status-${status}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-      {getIcon()}
-      {STATUS_LABELS[status] || status}
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+      <span className={`badge status-${status}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+        {getIcon()}
+        {label}
+      </span>
+      {status === 'H' && holidayName && (
+        <span style={{ fontSize: '0.7rem', color: '#DB2777', background: '#FDF2F8', padding: '2px 8px', borderRadius: 'var(--radius-full)', fontWeight: 700, border: '1px solid #FBCFE8' }}>
+          {holidayName}
+        </span>
+      )}
     </span>
   );
 };
@@ -302,10 +336,16 @@ const EmployeeAttendance = () => {
     if (!dateStr) return '--';
     return new Date(dateStr).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
   };
+
+
   const formatHours = (hours) => {
-    if (hours === null || hours === undefined) return '--';
-    return hours.toFixed(2);
-  };
+  if (!hours && hours !== 0) return '—';
+
+  const hrs = Math.floor(hours);
+  const mins = Math.round((hours - hrs) * 60);
+
+  return `${hrs}h ${mins}m`;
+};
 
   // ── Location viewer ─────────────────────────────────────────────
   const handleViewLocation = (record) => {
@@ -429,8 +469,10 @@ const EmployeeAttendance = () => {
           <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <AnimatePresence>
-                {records.map((r, idx) => (
-                  <motion.div key={`${r.employeeCode}-${r.date}`} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }} className="card" style={{ padding: 18 }}>
+                {records.map((r, idx) => {
+                  const isNonWorkDay = ['WO', 'H', 'A', 'L'].includes(r.status);
+                  return (
+                  <motion.div key={`${r.employeeCode}-${r.date}-${idx}`} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }} className="card" style={{ padding: 18 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
                       <div style={{ width: 42, height: 42, minWidth: 42, borderRadius: 'var(--radius-md)', background: 'var(--gradient-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '1rem', color: '#fff', boxShadow: '0 4px 12px rgba(32,118,199,0.3)' }}>
                         {r.employeeName?.[0]?.toUpperCase()}
@@ -441,10 +483,10 @@ const EmployeeAttendance = () => {
                       </div>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-                      <div><p style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)', marginBottom: 4, fontWeight: 600 }}>CHECK IN</p><p style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--color-success)' }}>{formatTime(r.checkInTime)}</p></div>
-                      <div><p style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)', marginBottom: 4, fontWeight: 600 }}>CHECK OUT</p><p style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--color-primary)' }}>{formatTime(r.checkOutTime)}</p></div>
-                      <div><p style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)', marginBottom: 4, fontWeight: 600 }}>TOTAL HOURS</p><p style={{ fontWeight: 800, fontSize: '0.9rem' }}>{formatHours(r.totalHours)}</p></div>
-                      <div><p style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)', marginBottom: 4, fontWeight: 600 }}>STATUS</p><StatusBadge status={r.status} /></div>
+                      <div><p style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)', marginBottom: 4, fontWeight: 600 }}>CHECK IN</p><p style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--color-success)' }}>{isNonWorkDay ? '—' : formatTime(r.checkInTime)}</p></div>
+                      <div><p style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)', marginBottom: 4, fontWeight: 600 }}>CHECK OUT</p><p style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--color-primary)' }}>{isNonWorkDay ? '—' : formatTime(r.checkOutTime)}</p></div>
+                      <div><p style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)', marginBottom: 4, fontWeight: 600 }}>TOTAL HOURS</p><p style={{ fontWeight: 800, fontSize: '0.9rem' }}>{isNonWorkDay ? '—' : formatHours(r.totalHours)}</p></div>
+                      <div><p style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)', marginBottom: 4, fontWeight: 600 }}>STATUS</p><StatusBadge status={r.status} leaveType={r.leaveType} leaveStatus={r.leaveStatus} holidayName={r.holidayName} /></div>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--color-border)', paddingTop: 12 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--color-text-secondary)', fontSize: '0.8rem' }}>
@@ -456,7 +498,8 @@ const EmployeeAttendance = () => {
                       </button>
                     </div>
                   </motion.div>
-                ))}
+                  );
+                })}
               </AnimatePresence>
             </div>
             <Pagination />
@@ -481,7 +524,9 @@ const EmployeeAttendance = () => {
                 </thead>
                 <tbody>
                   <AnimatePresence>
-                    {records.map((r, idx) => (
+                    {records.map((r, idx) => {
+                      const isNonWorkDay = ['WO', 'H', 'A', 'L'].includes(r.status);
+                      return (
                       <motion.tr key={`${r.employeeCode}-${r.date}`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.03 }} whileHover={{ backgroundColor: 'var(--color-surface-hover)' }} style={{ transition: 'background 0.2s' }}>
                         <td style={{ fontWeight: 600 }}>{r.employeeCode}</td>
                         <td>
@@ -491,11 +536,19 @@ const EmployeeAttendance = () => {
                           </div>
                         </td>
                         <td>{formatDate(r.date)}</td>
-                        <td><span className={`badge ${r.workMode === 'Field' ? 'status-Coff' : r.workMode === 'WFH' ? 'status-WO' : 'status-AUTO'}`} style={{ fontSize: '0.7rem' }}>{r.workMode || 'Office'}</span></td>
-                        <td style={{ color: 'var(--color-success)', fontWeight: 600 }}>{formatTime(r.checkInTime)}</td>
-                        <td style={{ color: 'var(--color-primary)', fontWeight: 600 }}>{formatTime(r.checkOutTime)}</td>
-                        <td style={{ fontWeight: 600 }}>{formatHours(r.totalHours)}</td>
-                        <td><StatusBadge status={r.status} /></td>
+                        <td>
+                          {isNonWorkDay && !r.workMode ? (
+                            <span style={{ color: 'var(--color-text-tertiary)' }}>—</span>
+                          ) : (
+                            <span className={`badge ${r.workMode === 'Field' ? 'status-Coff' : r.workMode === 'WFH' ? 'status-WO' : 'status-AUTO'}`} style={{ fontSize: '0.7rem' }}>
+                              {r.workMode || 'Office'}
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ color: 'var(--color-success)', fontWeight: 600 }}>{isNonWorkDay ? '—' : formatTime(r.checkInTime)}</td>
+                        <td style={{ color: 'var(--color-primary)', fontWeight: 600 }}>{isNonWorkDay ? '—' : formatTime(r.checkOutTime)}</td>
+                        <td style={{ fontWeight: 600 }}>{isNonWorkDay ? '—' : formatHours(r.totalHours)}</td>
+                        <td><StatusBadge status={r.status} leaveType={r.leaveType} leaveStatus={r.leaveStatus} holidayName={r.holidayName} /></td>
                         <td>
                           {r.location?.latitude && r.location?.longitude ? (
                             <button onClick={() => handleViewLocation(r)} className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -506,7 +559,8 @@ const EmployeeAttendance = () => {
                           )}
                         </td>
                       </motion.tr>
-                    ))}
+                      );
+                    })}
                   </AnimatePresence>
                 </tbody>
               </table>
