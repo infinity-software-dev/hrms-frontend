@@ -101,7 +101,7 @@ const LeaveDashboard = () => {
             <StatCard 
               title="Total Pending" 
               count={stats.totalPending} 
-              subtitle={`HR: ${stats.pendingByStage.hr} • GM: ${stats.pendingByStage.gm} • Dir: ${stats.pendingByStage.director}`}
+              subtitle={`Pending HR Approval: ${stats.pendingByStage.hr}`}
               color="#F59E0B" icon={Clock} 
             />
             <StatCard 

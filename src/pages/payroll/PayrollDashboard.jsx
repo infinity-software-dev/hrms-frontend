@@ -200,6 +200,7 @@ const PayrollDashboard = () => {
           "Joining Date",
           "Working Days",
           "Leaves Taken",
+          "Sandwich Deductions",
           "Days Present",
           "Holidays Count",
           "Week Offs Count",
@@ -271,6 +272,7 @@ const PayrollDashboard = () => {
         { wch: 15 }, // Joining Date
         { wch: 15 }, // Working Days
         { wch: 12 }, // Leaves Taken
+        { wch: 18 }, // Sandwich Deductions
         { wch: 12 }, // Days Present
         { wch: 15 }, // Holidays Count
         { wch: 15 }, // Week Offs Count
@@ -498,7 +500,7 @@ const PayrollDashboard = () => {
                           </td>
                           <td style={{ padding: '20px 24px' }}>
                             {isProcessed ? (
-                              <div style={{ display: 'flex', gap: '8px' }}>
+                              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                                 <button
                                   onClick={() => {
                                     setSelectedPayroll({ ...p, detailType: 'Half Days', details: p.halfDayDetails || [] });
@@ -514,7 +516,7 @@ const PayrollDashboard = () => {
                                     setSelectedPayroll({ ...p, detailType: 'Absent Days', details: p.absentDayDetails || [] });
                                     setShowDetailsModal(true);
                                   }}
-                                  title="Click to view Absents"
+                                  title="Click to view Absents & Leaves"
                                   style={{ background: '#fef2f2', color: '#b91c1c', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700, border: 'none', cursor: 'pointer' }}
                                 >
                                   {row.absentDays}A
@@ -531,6 +533,18 @@ const PayrollDashboard = () => {
                                 <span title="Paid Leaves" style={{ background: '#dbeafe', color: '#1e3a8a', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700 }}>
                                   {row.paidLeaves}PL
                                 </span>
+                                {p.sandwichDeductions > 0 && (
+                                  <button
+                                    onClick={() => {
+                                      setSelectedPayroll({ ...p, detailType: 'Sandwich Deductions', details: p.sandwichDetails || [] });
+                                      setShowDetailsModal(true);
+                                    }}
+                                    title="Click to view Sandwich Deductions"
+                                    style={{ background: '#fef2f2', color: '#b91c1c', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700, border: '1px solid #fecaca', cursor: 'pointer' }}
+                                  >
+                                    {p.sandwichDeductions}SD
+                                  </button>
+                                )}
                               </div>
                             ) : '-'}
                           </td>
@@ -766,12 +780,8 @@ const PayrollDashboard = () => {
                         <div style={{ fontSize: '1.1rem', fontWeight: 900, color: '#f59e0b' }}>{selectedPayroll.halfDays}</div>
                       </div>
                       <div style={{ textAlign: 'center', padding: '12px', background: '#f8fafc', borderRadius: '14px', border: '1px solid #f1f5f9' }}>
-                        <div style={{ color: '#64748b', fontSize: '0.7rem', fontWeight: 700, marginBottom: '4px' }}>ABSENTS</div>
-                        <div style={{ fontSize: '1.1rem', fontWeight: 900, color: '#ef4444' }}>{selectedPayroll.absentDays}</div>
-                      </div>
-                      <div style={{ textAlign: 'center', padding: '12px', background: '#f8fafc', borderRadius: '14px', border: '1px solid #f1f5f9' }}>
-                        <div style={{ color: '#64748b', fontSize: '0.7rem', fontWeight: 700, marginBottom: '4px' }}>PAID LEAVES</div>
-                        <div style={{ fontSize: '1.1rem', fontWeight: 900, color: '#6366f1' }}>{selectedPayroll.paidLeaves || 0}</div>
+                        <div style={{ color: '#64748b', fontSize: '0.7rem', fontWeight: 700, marginBottom: '4px' }}>ABSENTS & LEAVES</div>
+                        <div style={{ fontSize: '1.1rem', fontWeight: 900, color: '#ef4444' }}>{selectedPayroll.absentDays || 0}</div>
                       </div>
                       <div style={{ textAlign: 'center', padding: '12px', background: '#f8fafc', borderRadius: '14px', border: '1px solid #f1f5f9' }}>
                         <div style={{ color: '#64748b', fontSize: '0.7rem', fontWeight: 700, marginBottom: '4px' }}>HOLIDAYS</div>
@@ -782,6 +792,13 @@ const PayrollDashboard = () => {
                         <div style={{ fontSize: '1.1rem', fontWeight: 900, color: '#64748b' }}>{selectedPayroll.weekOffs || 0}</div>
                       </div>
                     </div>
+
+                    {selectedPayroll.sandwichDeductions > 0 && (
+                      <div style={{ background: '#fef2f2', padding: '16px 24px', borderRadius: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', border: '1px solid #fecaca' }}>
+                        <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#991b1b' }}>SANDWICH LEAVE DEDUCTIONS</span>
+                        <span style={{ fontSize: '1.5rem', fontWeight: 900, color: '#991b1b' }}>{selectedPayroll.sandwichDeductions} Days</span>
+                      </div>
+                    )}
 
                     <div style={{ background: '#f0fdf4', padding: '16px 24px', borderRadius: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', border: '1px solid #dcfce7' }}>
                       <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#166534' }}>TOTAL PAYABLE (PAID) DAYS</span>

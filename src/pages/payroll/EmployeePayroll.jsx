@@ -152,7 +152,18 @@ const EmployeePayroll = () => {
                     <div className="ep-card-stats">
                       <div className="ep-stat-box">
                          <div className="ep-stat-label">PAID DAYS</div>
-                         <div className="ep-stat-value">{p.paidDays} / {p.totalDaysInMonth}</div>
+                         <div className="ep-stat-value">
+                           {p.paidDays} / {p.totalDaysInMonth}
+                           {p.sandwichDeductions > 0 && (
+                             <span style={{ fontSize: '0.7rem', marginLeft: '6px', padding: '2px 6px', background: '#FEE2E2', color: '#EF4444', borderRadius: '4px', fontWeight: 800 }}>
+                               -{p.sandwichDeductions} SD
+                             </span>
+                           )}
+                         </div>
+                      </div>
+                      <div className="ep-stat-box">
+                         <div className="ep-stat-label">ABSENT & LEAVES</div>
+                         <div className="ep-stat-value" style={{ color: '#EF4444' }}>{p.absentDays || 0}</div>
                       </div>
                       <div className="ep-stat-box">
                          <div className="ep-stat-label">GROSS</div>
@@ -219,11 +230,54 @@ const EmployeePayroll = () => {
                       <span className="ep-breakdown-label">Gross Earnings</span>
                       <span className="ep-breakdown-val">₹{selectedPayroll.grossEarnings.toLocaleString()}</span>
                     </div>
+                    {selectedPayroll.sandwichDeductions > 0 && (
+                      <div className="ep-breakdown-row ep-bg-error">
+                        <span className="ep-breakdown-label ep-text-error">Sandwich Deduction ({selectedPayroll.sandwichDeductions} days)</span>
+                        <span className="ep-breakdown-val ep-text-error">Deducted</span>
+                      </div>
+                    )}
                     <div className="ep-breakdown-row ep-bg-error">
                       <span className="ep-breakdown-label ep-text-error">Professional Tax (PT)</span>
                       <span className="ep-breakdown-val ep-text-error">- ₹{selectedPayroll.professionalTax}</span>
                     </div>
                   </div>
+
+                  {/* Absent Days & Leaves unified section */}
+                  {selectedPayroll.absentDayDetails && selectedPayroll.absentDayDetails.length > 0 && (
+                    <div style={{ marginBottom: '24px' }}>
+                      <h4 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-text-secondary)', textTransform: 'uppercase', marginBottom: '4px' }}>
+                        Absent Days &amp; Leaves
+                        <span style={{ marginLeft: '8px', fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'none' }}>
+                          ({(selectedPayroll.absentDays || 0) + (selectedPayroll.paidLeaves || 0)} days total · {selectedPayroll.paidLeaves || 0} paid)
+                        </span>
+                      </h4>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '160px', overflowY: 'auto' }}>
+                        {selectedPayroll.absentDayDetails.map((d, idx) => {
+                          const isPaidLeave = d.reason && d.reason.includes('Paid Leave');
+                          return (
+                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 12px', background: isPaidLeave ? '#E0F2FE' : '#FEF2F2', border: `1px solid ${isPaidLeave ? '#BAE6FD' : '#FEE2E2'}`, borderRadius: '10px', fontSize: '0.8rem' }}>
+                              <span style={{ fontWeight: 700, color: isPaidLeave ? '#0369A1' : '#B91C1C' }}>{formatDate(d.date).split(',')[0]}</span>
+                              <span style={{ fontWeight: 600, color: isPaidLeave ? '#0284C7' : '#991B1B' }}>{d.reason}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedPayroll.sandwichDetails && selectedPayroll.sandwichDetails.length > 0 && (
+                    <div style={{ marginBottom: '24px' }}>
+                      <h4 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-text-secondary)', textTransform: 'uppercase', marginBottom: '10px' }}>Sandwich Deduction Details</h4>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '120px', overflowY: 'auto' }}>
+                        {selectedPayroll.sandwichDetails.map((d, idx) => (
+                          <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px', background: '#FEF2F2', border: '1px solid #FEE2E2', borderRadius: '10px', fontSize: '0.8rem' }}>
+                            <span style={{ fontWeight: 700, color: '#B91C1C' }}>{formatDate(d.date).split(',')[0]}</span>
+                            <span style={{ fontWeight: 600, color: '#991B1B' }}>{d.reason}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   <div className="ep-modal-net">
                     <div className="ep-modal-net-label">Final Net Payable</div>
