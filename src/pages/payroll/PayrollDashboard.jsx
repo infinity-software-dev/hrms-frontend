@@ -180,214 +180,212 @@ const PayrollDashboard = () => {
   };
 
   const handleExportExcel = () => {
-    const tId = toast.loading('Generating Excel...');
-    try {
-      const aoa = [
-        ["PAYROLL SUMMARY REPORT"],
-        [`Period: ${formatDate(dateRange.startDate)} to ${formatDate(dateRange.endDate)}`],
-        [],
-        [
-          "Sr. No.",
-          "Employee No",
-          "Employee Name",
-          "PAN No",
-          "Designation",
-          "Bank Name",
-          "Bank Account Number",
-          "IFSC Code",
-          "MICR (keep it blank)",
-          "Bank Branch",
-          "Joining Date",
-          "Working Days",
-          "Leaves Taken",
-          "Sandwich Deductions",
-          "Days Present",
-          "Holidays Count",
-          "Week Offs Count",
-          "Base Salary (Total Salary)",
-          "Employee CTC (same as Total Salary)",
-          "Gross Salary",
-          "Profession Tax Deduction",
-          "Net Salary",
-          "Total Pay"
-        ]
-      ];
+  const tId = toast.loading('Generating Excel...');
+  try {
+    const aoa = [
+      ["PAYROLL SUMMARY REPORT"],
+      [`Period: ${formatDate(dateRange.startDate)} to ${formatDate(dateRange.endDate)}`],
+      [],
+      [
+        "Sr. No.",
+        "Employee No",
+        "Employee Name",
+        "PAN No",
+        "Designation",
+        "Bank Name",
+        "Bank Account Number",
+        "IFSC Code",
+        "MICR (keep it blank)",
+        "Bank Branch",
+        "Joining Date",
+        "Working Days",
+        "Leaves Taken",
+        "Days Present",
+        "Holidays Count",
+        "Week Offs Count",
+        "Base Salary (Total Salary)",
+        "Employee CTC (same as Total Salary)",
+        "Gross Salary",
+        "Profession Tax Deduction",
+        "Net Salary",
+        "Total Pay"
+      ]
+    ];
 
-      let totalPaySum = 0;
-      filteredEmployees.forEach((emp, index) => {
-        // ── Use the SAME centralized helper as the dashboard table ──
-        const row = computePayrollRow(emp, payrolls);
+    let totalPaySum = 0;
+    filteredEmployees.forEach((emp, index) => {
+      // ── Use the SAME centralized helper as the dashboard table ──
+      const row = computePayrollRow(emp, payrolls);
 
-        const joiningDateFormatted = emp.joiningDate ? new Date(emp.joiningDate).toLocaleDateString('en-IN') : '—';
+      const joiningDateFormatted = emp.joiningDate ? new Date(emp.joiningDate).toLocaleDateString('en-IN') : '—';
 
-        totalPaySum += row.totalPay;
+      totalPaySum += row.totalPay;
 
-        aoa.push([
-          index + 1,
-          emp.employeeCode || '—',
-          emp.name || '—',
-          emp.panNumber || '—',
-          emp.position || '—',
-          emp.bankName || '—',
-          emp.accountNumber || '—',
-          emp.ifsc || '—',
-          '', // MICR (keep it blank)
-          emp.branch || '—',
-          joiningDateFormatted,
-          row.workingDays,
-          row.leavesTaken,
-          row.effectivePresentDays,
-          row.holidays,
-          row.weekOffs,
-          row.baseSalary,
-          row.employeeCTC,
-          row.grossSalary,
-          row.ptDeduction,
-          row.netSalary,
-          row.totalPay
-        ]);
-      });
+      aoa.push([
+        index + 1,
+        emp.employeeCode || '—',
+        emp.name || '—',
+        emp.panNumber || '—',
+        emp.position || '—',
+        emp.bankName || '—',
+        emp.accountNumber || '—',
+        emp.ifsc || '—',
+        '', // MICR (keep it blank)
+        emp.branch || '—',
+        joiningDateFormatted,
+        row.workingDays,
+        row.leavesTaken,
+        row.effectivePresentDays,
+        row.holidays,
+        row.weekOffs,
+        row.baseSalary,
+        row.employeeCTC,
+        row.grossSalary,
+        row.ptDeduction,
+        row.netSalary,
+        row.totalPay
+      ]);
+    });
 
-      // Total row at the bottom
-      const totalRow = Array(22).fill('');
-      totalRow[0] = 'Total';
-      totalRow[21] = totalPaySum;
-      aoa.push(totalRow);
+    // Total row at the bottom
+    const totalRow = Array(22).fill('');
+    totalRow[0] = 'Total';
+    totalRow[21] = totalPaySum;
+    aoa.push(totalRow);
 
-      const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
 
-      // Set column widths
-      ws['!cols'] = [
-        { wch: 8 },  // Sr. No.
-        { wch: 15 }, // Employee No
-        { wch: 25 }, // Employee Name
-        { wch: 15 }, // PAN No
-        { wch: 20 }, // Designation
-        { wch: 20 }, // Bank Name
-        { wch: 22 }, // Bank Account Number
-        { wch: 15 }, // IFSC Code
-        { wch: 15 }, // MICR
-        { wch: 15 }, // Bank Branch
-        { wch: 15 }, // Joining Date
-        { wch: 15 }, // Working Days
-        { wch: 12 }, // Leaves Taken
-        { wch: 18 }, // Sandwich Deductions
-        { wch: 12 }, // Days Present
-        { wch: 15 }, // Holidays Count
-        { wch: 15 }, // Week Offs Count
-        { wch: 25 }, // Base Salary (Total Salary)
-        { wch: 30 }, // Employee CTC (same as Total Salary)
-        { wch: 15 }, // Gross Salary
-        { wch: 22 }, // Profession Tax Deduction
-        { wch: 15 }, // Net Salary
-        { wch: 15 }  // Total Pay
-      ];
+    // Set column widths
+    ws['!cols'] = [
+      { wch: 8 },  // Sr. No.
+      { wch: 15 }, // Employee No
+      { wch: 25 }, // Employee Name
+      { wch: 15 }, // PAN No
+      { wch: 20 }, // Designation
+      { wch: 20 }, // Bank Name
+      { wch: 22 }, // Bank Account Number
+      { wch: 15 }, // IFSC Code
+      { wch: 15 }, // MICR
+      { wch: 15 }, // Bank Branch
+      { wch: 15 }, // Joining Date
+      { wch: 15 }, // Working Days
+      { wch: 12 }, // Leaves Taken
+      { wch: 12 }, // Days Present
+      { wch: 15 }, // Holidays Count
+      { wch: 15 }, // Week Offs Count
+      { wch: 25 }, // Base Salary (Total Salary)
+      { wch: 30 }, // Employee CTC (same as Total Salary)
+      { wch: 15 }, // Gross Salary
+      { wch: 22 }, // Profession Tax Deduction
+      { wch: 15 }, // Net Salary
+      { wch: 15 }  // Total Pay
+    ];
 
-      // Set row heights for vertical breathing room
-      ws['!rows'] = [
-        { hpt: 35 }, // Title Row
-        { hpt: 25 }, // Subtitle Row (Period)
-        { hpt: 15 }, // Spacer Row
-        { hpt: 30 }, // Headers Row
-      ];
+    // Set row heights for vertical breathing room
+    ws['!rows'] = [
+      { hpt: 35 }, // Title Row
+      { hpt: 25 }, // Subtitle Row (Period)
+      { hpt: 15 }, // Spacer Row
+      { hpt: 30 }, // Headers Row
+    ];
 
-      // Define reusable corporate color palettes
-      const titleStyle = {
-        font: { name: "Arial", sz: 14, bold: true, color: { rgb: "FFFFFF" } },
-        fill: { fgColor: { rgb: "3B82F6" } }, // Elegant Blue
-        alignment: { horizontal: "center", vertical: "center" }
-      };
+    // Define reusable corporate color palettes
+    const titleStyle = {
+      font: { name: "Arial", sz: 14, bold: true, color: { rgb: "FFFFFF" } },
+      fill: { fgColor: { rgb: "3B82F6" } }, // Elegant Blue
+      alignment: { horizontal: "center", vertical: "center" }
+    };
 
-      const subtitleStyle = {
-        font: { name: "Arial", sz: 10, bold: true, color: { rgb: "1E293B" } },
-        fill: { fgColor: { rgb: "EFF6FF" } }, // Very Light Blue/Gray tint
-        alignment: { horizontal: "center", vertical: "center" }
-      };
+    const subtitleStyle = {
+      font: { name: "Arial", sz: 10, bold: true, color: { rgb: "1E293B" } },
+      fill: { fgColor: { rgb: "EFF6FF" } }, // Very Light Blue/Gray tint
+      alignment: { horizontal: "center", vertical: "center" }
+    };
 
-      const headerStyle = {
-        font: { name: "Arial", sz: 10, bold: true, color: { rgb: "FFFFFF" } },
-        fill: { fgColor: { rgb: "1E293B" } }, // Deep Dark Slate/Navy
-        alignment: { horizontal: "center", vertical: "center", wrapText: true },
-        border: {
-          top: { style: "thin", color: { rgb: "475569" } },
-          bottom: { style: "medium", color: { rgb: "000000" } },
-          left: { style: "thin", color: { rgb: "475569" } },
-          right: { style: "thin", color: { rgb: "475569" } }
-        }
-      };
+    const headerStyle = {
+      font: { name: "Arial", sz: 10, bold: true, color: { rgb: "FFFFFF" } },
+      fill: { fgColor: { rgb: "1E293B" } }, // Deep Dark Slate/Navy
+      alignment: { horizontal: "center", vertical: "center", wrapText: true },
+      border: {
+        top: { style: "thin", color: { rgb: "475569" } },
+        bottom: { style: "medium", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "475569" } },
+        right: { style: "thin", color: { rgb: "475569" } }
+      }
+    };
 
-      const totalStyle = {
-        font: { name: "Arial", sz: 10, bold: true, color: { rgb: "1E293B" } },
-        fill: { fgColor: { rgb: "F1F5F9" } }, // Structured Gray Slate
-        alignment: { vertical: "center" },
-        border: {
-          top: { style: "double", color: { rgb: "1E293B" } },
-          bottom: { style: "thin", color: { rgb: "1E293B" } }
-        }
-      };
+    const totalStyle = {
+      font: { name: "Arial", sz: 10, bold: true, color: { rgb: "1E293B" } },
+      fill: { fgColor: { rgb: "F1F5F9" } }, // Structured Gray Slate
+      alignment: { vertical: "center" },
+      border: {
+        top: { style: "double", color: { rgb: "1E293B" } },
+        bottom: { style: "thin", color: { rgb: "1E293B" } }
+      }
+    };
 
-      const dataStyle = {
-        font: { name: "Arial", sz: 10, color: { rgb: "334155" } },
-        alignment: { vertical: "center" },
-        border: {
-          bottom: { style: "thin", color: { rgb: "F1F5F9" } },
-          left: { style: "thin", color: { rgb: "F8FAFC" } },
-          right: { style: "thin", color: { rgb: "F8FAFC" } }
-        }
-      };
+    const dataStyle = {
+      font: { name: "Arial", sz: 10, color: { rgb: "334155" } },
+      alignment: { vertical: "center" },
+      border: {
+        bottom: { style: "thin", color: { rgb: "F1F5F9" } },
+        left: { style: "thin", color: { rgb: "F8FAFC" } },
+        right: { style: "thin", color: { rgb: "F8FAFC" } }
+      }
+    };
 
-      // Merge cells for Title and Subtitle
-      ws['!merges'] = [
-        { s: { r: 0, c: 0 }, e: { r: 0, c: 21 } },
-        { s: { r: 1, c: 0 }, e: { r: 1, c: 21 } }
-      ];
+    // Merge cells for Title and Subtitle
+    ws['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 21 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 21 } }
+    ];
 
-      // Walk through cells and apply styles dynamically
-      const range = XLSX.utils.decode_range(ws['!ref']);
-      for (let R = range.s.r; R <= range.e.r; ++R) {
-        for (let C = range.s.c; C <= range.e.c; ++C) {
-          const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
-          if (!ws[cellRef]) continue;
+    // Walk through cells and apply styles dynamically
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    for (let R = range.s.r; R <= range.e.r; ++R) {
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
+        if (!ws[cellRef]) continue;
 
-          // Make sure style property is initialized
-          ws[cellRef].s = {};
+        // Make sure style property is initialized
+        ws[cellRef].s = {};
 
-          if (R === 0) {
-            ws[cellRef].s = titleStyle;
-          } else if (R === 1) {
-            ws[cellRef].s = subtitleStyle;
-          } else if (R === 3) {
-            ws[cellRef].s = headerStyle;
-          } else if (R === range.e.r) {
-            ws[cellRef].s = totalStyle;
-            if (C === 21) {
-              ws[cellRef].s.alignment = { horizontal: "right", vertical: "center" };
-            }
-          } else if (R > 3) {
-            // Apply standard data style
-            ws[cellRef].s = { ...dataStyle };
+        if (R === 0) {
+          ws[cellRef].s = titleStyle;
+        } else if (R === 1) {
+          ws[cellRef].s = subtitleStyle;
+        } else if (R === 3) {
+          ws[cellRef].s = headerStyle;
+        } else if (R === range.e.r) {
+          ws[cellRef].s = totalStyle;
+          if (C === 21) {
+            ws[cellRef].s.alignment = { horizontal: "right", vertical: "center" };
+          }
+        } else if (R > 3) {
+          // Apply standard data style
+          ws[cellRef].s = { ...dataStyle };
 
-            // Set default alignment
-            if ([0, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21].includes(C)) {
-              ws[cellRef].s.alignment = { horizontal: "right", vertical: "center" };
-            } else if ([1, 3, 7, 8, 10].includes(C)) {
-              ws[cellRef].s.alignment = { horizontal: "center", vertical: "center" };
-            } else {
-              ws[cellRef].s.alignment = { horizontal: "left", vertical: "center" };
-            }
+          // Set default alignment
+          if ([0, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21].includes(C)) {
+            ws[cellRef].s.alignment = { horizontal: "right", vertical: "center" };
+          } else if ([1, 3, 7, 8, 10].includes(C)) {
+            ws[cellRef].s.alignment = { horizontal: "center", vertical: "center" };
+          } else {
+            ws[cellRef].s.alignment = { horizontal: "left", vertical: "center" };
           }
         }
       }
-
-      XLSX.utils.book_append_sheet(wb, ws, 'Payroll Summary');
-
-      XLSX.writeFile(wb, `Payroll_Summary_${dateRange.startDate}_to_${dateRange.endDate}.xlsx`);
-      toast.success('Export successful', { id: tId });
-    } catch (err) {
-      toast.error('Failed to export Excel', { id: tId });
     }
-  };
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Payroll Summary');
+
+    XLSX.writeFile(wb, `Payroll_Summary_${dateRange.startDate}_to_${dateRange.endDate}.xlsx`);
+    toast.success('Export successful', { id: tId });
+  } catch (err) {
+    toast.error('Failed to export Excel', { id: tId });
+  }
+};
 
   const filteredEmployees = employees.filter(emp =>
     emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
